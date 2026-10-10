@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Cierre de fichas - Capri GDL</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body onhelp="return false">
+<div id="app">
+<div id="tabs"><span class="tb on" id="tbR" onclick="showView('reg')">INGRESOS Y RETIROS</span><span class="tb" id="tbC" onclick="showView('cierre')">CIERRE</span></div>
+<div id="vReg" class="view" style="display:flex">
+  <div class="vtop">
+    <div class="bar">
+      <h1>Registro &middot; Capri GDL</h1><span class="hint" style="margin-top:0">Dia de operacion: <b id="rgF"></b></span>
+      <span class="sp"></span>
+      <span class="opc" onclick="monOpen(false)" title="Cambiar operador"><span class="hint">Operador</span><b id="rgM"></b> &#9662;</span>
+      <span class="b" onclick="regCfgOpen()">Configuracion</span>
+      <span class="b" onclick="cfgOpen()">Conexion y archivos...</span>
+      <span class="b" onclick="regTotRefresh()">Actualizar totales</span>
+      <span class="b" onclick="almCfgOpen()">Alarmas...</span><span class="b" id="sndB1" onclick="almMuteToggle()">Sonido</span><span class="b af" onclick="afStart()">Aforo</span><span class="b af" onclick="hsOpen()">Hostess</span><span class="b af" onclick="apOpen('I')" title="Registrar la hora de ingreso del personal administrativo">Ingreso personal</span><span class="b af" onclick="apOpen('S')" title="Registrar la hora de salida del personal administrativo">Salida personal</span>
+      <span class="b p" onclick="scoreOpen()">Score WhatsApp</span>
+    </div>
+    <div class="jpb" id="jpbR"></div>
+  </div>
+  <div class="vbody">
+    <div class="tpr"><span class="b tp ing on" id="tI" onclick="setTipo('I')">INGRESO &nbsp;(F2)</span><span class="b tp ret" id="tR" onclick="setTipo('R')">RETIRO &nbsp;(F3)</span><span class="b tp dev" id="tD" onclick="setTipo('D')">DEVOLUCION &nbsp;(F4)</span><span class="b tp jp" id="tJ" onclick="setTipo('J')">JACKPOT &nbsp;(F5)</span><span class="b tp pr" id="tP" onclick="setTipo('P')">PREMIO &nbsp;(F6)</span></div>
+    <label class="nl" id="nlb" for="rgN">Nombre</label>
+    <div class="nw"><input id="rgN" class="nin" type="text" autocomplete="off" maxlength="60"><div id="rgSug"></div></div>
+    <div id="rgMsg"></div>
+    <div id="rgW" class="hint"></div>
+    <h2>Historial de movimientos del dia (ingresos a la izquierda, retiros a la derecha)</h2>
+    <div id="rgL"></div>
+    <div class="hint">Elige INGRESO (F2), RETIRO (F3), DEVOLUCION (F4) o JACKPOT (F5). Escribe el nombre y elige de la lista con las flechas (o escribe uno nuevo) y presiona Enter. Con INGRESO / RETIRO captura el monto, elige la mesa y el Sup. / Pit Boss; cada registro se escribe en el Informe (hoja INGRESOS Y RETIROS) y actualiza el Rating Card al instante. Con DEVOLUCION se consulta el Rating Card del cliente (incluye perdidas del mismo dia) y se abre la captura de la devolucion. En el historial, haz clic en un movimiento para <b>editarlo</b> o <b>eliminarlo</b>: el Informe y el Rating Card se corrigen juntos.</div>
+  </div>
+</div>
+<div id="vCierre" class="view" style="display:none">
+  <div class="vtop">
+    <div class="bar">
+      <h1>Cierre &middot; Capri GDL</h1>
+      <span class="b" id="fl1" onclick="moveDay(-1)">&larr;</span><span id="fe"></span><span class="b" id="fl2" onclick="moveDay(1)">&rarr;</span>
+      <span class="stt"><span id="net"></span> <span id="stat"></span></span>
+      <span class="b" onclick="sync(true)">Actualizar</span>
+      <span class="b" onclick="almCfgOpen()">Alarmas...</span><span class="b" id="sndB2" onclick="almMuteToggle()">Sonido</span><span class="b af" onclick="afStart()">Aforo</span><span class="b af" onclick="hsOpen()">Hostess</span><span class="b af" onclick="apOpen('I')" title="Registrar la hora de ingreso del personal administrativo">Ingreso personal</span><span class="b af" onclick="apOpen('S')" title="Registrar la hora de salida del personal administrativo">Salida personal</span><span class="b af" onclick="prOpen()" title="Capturar al ganador de la rifa (F6)">PREMIO (F6)</span>
+      <span class="b p" onclick="cuOpen()" title="Cuadra Informe, Rating Card y devoluciones">Cuadrar</span>
+      <span class="b p" onclick="cierreMail()" title="Escribe en el INFORME los comentarios de propinas/jackpot y fichas en circulacion y abre el correo de cierre">Cierre</span>
+      <span class="b p" onclick="fnnOpen()" title="Escribe en el INFORME el renglon 'Se presentan FNN' (no toca nada arriba de 'Se inicia presentacion de Bancas')">Fichas no negociables</span>
+      <span class="b p" onclick="cartasOpen()" title="Escribe en el INFORME el renglon 'Dealer presenta ... zapatos/mazos ... dados de Craps' (serie y color se toman de arriba)">Cartas</span>
+      <span class="b p" onclick="cajasOpen()" title="Escribe en el INFORME el renglon del corte de caja (Jefe de Cajas): resultado, cajero y quien informa; pone la hora y 5 minutos antes en el renglon anterior">Cajas</span>
+      <span class="b p" onclick="scoreOpen()">Score WhatsApp</span>
+      <span class="b" onclick="undo()" title="Ctrl+Z">&#8630; Deshacer</span><span class="b" onclick="redo()" title="Ctrl+Y">Rehacer &#8631;</span>
+      <span id="selb"></span>
+      <span class="b d" onclick="resetDia()">Reset del dia</span>
+      <span class="b" id="btnCfg" onclick="cfgOpen()">Conexion y archivos...</span>
+    </div>
+    <div class="jpb" id="jpbC"></div>
+    <div class="kp" id="kp"></div>
+  </div>
+  <div class="vbody">
+    <div id="main" class="mg"></div>
+    <div id="hid" class="hint"></div>
+    <div id="jp"></div>
+    <div class="hint">Captura lo que necesites y presiona <b>Listo</b>: ahi se escribe en tu Excel y se vuelve a leer todo (banco, jackpot e informe). Puedes abrir varias mesas a la vez (Seleccionar varias) y mover cada ventana. "Sin operacion" llena el cierre con las fichas de apertura. Antes de las 6:00 am la fecha de operacion es la del dia anterior (puedes cambiarla con las flechas).</div>
+  </div>
+  <div id="wins"></div>
+</div>
+</div>
+
+<div id="mAmt" class="ov" style="z-index:20"><div class="pn" style="width:35rem">
+  <h3 id="amT"></h3><div class="hint" id="amN" style="font-size:1.125rem;color:#eef3ee"></div>
+  <div id="dvAm"></div>
+  <input id="amV" class="bigin" type="text" autocomplete="off" maxlength="9">
+  <div class="pv" id="amP"></div>
+  <div class="hint">Enter = continuar &middot; Esc = cancelar. Si escribes 25 se completa como $25,000.</div>
+</div></div>
+
+<div id="mPk" class="ov" style="z-index:21"><div class="pn" style="width:47.5rem">
+  <h3 id="pkT" style="font-size:1.25rem"></h3>
+  <div id="pkG"></div>
+  <div class="hint">Flechas = moverte &middot; Enter o clic = elegir &middot; Esc = cancelar</div>
+</div></div>
+
+<div id="mNew" class="ov" style="z-index:22"><div class="pn" style="width:35rem">
+  <h3>Cliente nuevo</h3>
+  <div style="font-size:1.875rem;font-weight:700;margin:0.625rem 0" id="nwN"></div>
+  <div class="hint" style="font-size:0.9375rem">No esta en la lista de clientes. Si es correcto se agrega a la lista y al Rating Card.</div>
+  <div class="f" style="margin-top:0.875rem"><span class="b p" onclick="newOk()">Agregar y continuar (Enter)</span><span class="b" onclick="newNo()">Volver (Esc)</span></div>
+</div></div>
+
+<div id="mHe" class="ov" style="z-index:24"><div class="pn" style="width:40rem">
+  <h3 style="font-size:1.375rem">Editar movimiento</h3>
+  <div class="hint" id="heO"></div>
+  <div class="f" style="margin-top:0.625rem"><span class="b tp ing" id="heI" onclick="heTipo('I')">INGRESO</span><span class="b tp ret" id="heR" onclick="heTipo('R')">RETIRO</span></div>
+  <span class="cfl">Cliente</span><input id="heN" class="cfi" type="text" autocomplete="off" maxlength="60" style="width:100%;font-size:1.125rem" oninput="var c=cleanTxt(this.value);if(c!==this.value)this.value=c">
+  <div class="f" style="align-items:flex-start;margin-top:0">
+    <div style="margin-right:0.625rem"><span class="cfl">Monto ($)</span><input id="heM" class="cfi" type="text" autocomplete="off" maxlength="9" style="width:10rem;font-size:1.25rem;font-weight:700;text-align:right" onkeypress="var c=event.keyCode||event.which;return c===13||(c>=48&&c<=57)" oninput="this.value=this.value.replace(/[^0-9]/g,'');heMp()"><div id="heMp" class="hint"></div></div>
+    <div style="margin-right:0.625rem"><span class="cfl">Mesa</span><select id="heS" class="cfi" style="width:11rem"></select></div>
+    <div><span class="cfl">Ticket</span><select id="heK" class="cfi" style="width:8rem"><option value="Ticket">Ticket</option><option value="Manual">Manual</option></select></div>
+  </div>
+  <span class="cfl">Sup. / Pit Boss</span><select id="heP" class="cfi" style="width:20rem"></select>
+  <div id="heMsg" style="margin-top:0.5rem;min-height:1.25rem"></div>
+  <div class="f" style="margin-top:0.625rem"><span class="b p" onclick="heSave()">Guardar cambios (Enter)</span><span class="b d" onclick="heDelete()">Eliminar movimiento</span><span class="b" onclick="heClose()">Cancelar (Esc)</span></div>
+  <div class="hint">La hora original se conserva. Al guardar se corrige el Informe (hoja INGRESOS Y RETIROS) y se recalcula el Rating Card del cliente (y el del nombre anterior si lo cambias).</div>
+</div></div>
+
+<div id="mMon" class="ov" style="z-index:30"><div class="pn" style="width:35rem">
+  <h3>Quien esta operando?</h3>
+  <div class="hint" style="font-size:0.875rem">Escribe el nombre del monitorista (si son dos: Mena/Omar).</div>
+  <input id="mnV" class="bigin" style="text-align:left;font-size:2.125rem" type="text" autocomplete="off" maxlength="40">
+  <div id="mnL"></div>
+  <div class="f"><span class="b p" onclick="monOk()">Aceptar</span><span class="b" id="mnX" onclick="monClose()">Cancelar</span></div>
+</div></div>
+
+<div id="mRC" class="ov" style="z-index:25"><div class="pn" style="width:43.75rem">
+  <div class="top"><h3 style="text-align:left">Configuracion del registro</h3><span class="b" onclick="almCfgOpen()">Alarmas...</span><span class="b" onclick="hdOpen()">Encabezados de mesas...</span><span class="b p" onclick="regCfgSave()">Guardar</span><span class="b" onclick="regCfgClose()">Cancelar</span></div>
+  <span class="cfl">Monto minimo de ingreso ($)</span><input id="cfMi" class="cfi" type="text" style="width:10rem">
+  <span class="cfl">Monto minimo de retiro ($)</span><input id="cfMr" class="cfi" type="text" style="width:10rem">
+  <span class="cfl">Mesas (una por linea; se escribe tal cual en la columna MESA del informe)</span><textarea id="cfMe" class="cft"></textarea>
+  <span class="cfl">Sup. / Pit Boss (uno por linea)</span><textarea id="cfPi" class="cft" style="height:6.25rem"></textarea>
+  <span class="cfl">CIERRE &middot; Dealers (uno por linea)</span><textarea id="cfCiD" class="cft" style="height:6.25rem"></textarea>
+  <span class="cfl">CIERRE &middot; Sub Auditoria (uno por linea)</span><textarea id="cfCiS" class="cft" style="height:5rem"></textarea>
+  <span class="cfl">CIERRE &middot; filas de la columna C donde va el operador (DEJALO VACIO para que las busque solo: celdas vacias desde &quot;Se inicia presentacion de Bancas&quot; hasta el corte de caja (&quot;Jefe de Cajas realiza el cierre&quot;); o escribe filas, ej. 12,14 o 20-22)</span><input id="cfCiO" class="cfi" type="text" style="width:16rem">
+  <span class="cfl">Monto a partir del cual se pregunta Manual o Ticket (mas de)</span><input id="cfLim" class="cfi" type="text" style="width:10rem">
+  <span class="cfl" style="display:none">Nombre de la hoja del reporte de aforo (vacio = busca una que diga AFORO)</span><input id="cfAf" class="cfi" type="text" style="display:none">
+  <span class="cfl">Clientes que no van al Rating Card (uno por linea)</span><textarea id="cfIg" class="cft" style="height:3.75rem"></textarea>
+  <span class="cfl" style="margin-top:1rem;color:#e0b84f">DEVOLUCIONES &middot; porcentaje segun la perdida (una linea por escalon: perdida desde = porcentaje). La primera linea es la perdida minima para tener devolucion. Ejemplo: 10000=10 y 100000=12</span><textarea id="cfDvT" class="cft" style="height:4.375rem"></textarea>
+  <span class="cfl">Redondear la devolucion a multiplos de ($)</span><input id="cfDvR" class="cfi" type="text" style="width:7.5rem">
+  <span class="cfl">Dias hacia atras que se revisan en el Rating Card (1 a 10)</span><input id="cfDvD" class="cfi" type="text" style="width:7.5rem">
+</div></div>
+
+<div id="mSc" class="ov" style="z-index:24"><div class="pn" style="width:35rem">
+  <h3>Score para WhatsApp</h3>
+  <div class="hint" style="font-size:0.9375rem">Fichas en circulacion (las que ves en las camaras):</div>
+  <input id="scF" class="bigin" type="text" autocomplete="off" maxlength="9">
+  <div class="pv" id="scP"></div>
+  <div class="f"><span class="b p" onclick="scGo('S')">Score mesas (Enter)</span><span class="b" onclick="scGo('C')">Cierre de mesas</span><span class="b" onclick="scClose()">Cancelar (Esc)</span></div>
+</div></div>
+
+<div id="mTx" class="ov" style="z-index:26"><div class="pn" style="width:38.75rem">
+  <h3>Texto listo</h3>
+  <div id="txA" style="white-space:pre-wrap;background:#0c1d19;border:1px solid #2a5246;border-radius:8px;padding:0.875rem;font-size:1.125rem;margin:0.5rem 0"></div>
+  <div class="f"><span class="b p" onclick="waOpen()">Copiar y abrir WhatsApp (Enter)</span><span class="b" onclick="if(txCopy())note('Texto copiado','up');txClose()">Solo copiar</span><span class="b" onclick="txClose()">Cerrar (Esc)</span></div>
+</div></div>
+<div id="mHd" class="ov" style="z-index:27"><div class="pn" style="width:56.25rem;max-height:92%;overflow:auto">
+  <div class="top"><h3 style="text-align:left">Encabezados de mesas en todos los libros</h3><span class="b" onclick="hdClose()">Cerrar</span></div>
+  <div class="hint">Escribe el nombre nuevo de cada mesa. Con "Buscar" el programa revisa los libros configurados (Banco, Jackpot, Informe y otros), te muestra donde aparece cada nombre y los cambia en un solo paso. Solo cambia celdas cuyo contenido completo es un nombre de mesa; no toca formulas ni los registros del dia. En la hoja AFORO los nombres se escriben por posicion (D9 a P9, mesas 1 a 13 en el mismo orden).</div>
+  <div id="hdT"></div>
+  <span class="cfl">Pegar lista de nombres nuevos (uno por linea, en el orden de la tabla)</span><textarea id="hdP" class="cft" style="height:4.375rem"></textarea>
+  <div class="f" style="margin:0.375rem 0"><span class="b" onclick="hdPaste()">Cargar lista pegada</span></div>
+  <span class="cfl">Otros libros a cambiar (una ruta completa por linea, opcional)</span><textarea id="hdX" class="cft" style="height:3.75rem"></textarea>
+  <label style="display:block;margin:0.625rem 0"><input type="checkbox" id="hdM" checked> Usar tambien estos nombres en la lista de mesas del registro de ingresos y retiros</label>
+  <div class="f"><span class="b p" onclick="hdScan()">1. Buscar en los libros</span><span class="b" onclick="hdGuardar()">Solo guardar nombres en el programa</span></div>
+  <div id="hdR" style="margin-top:0.75rem"></div>
+</div></div>
+
+<div id="mDv" class="ov" style="z-index:28"><div class="pn" style="width:43.75rem">
+  <div class="top"><h3 style="text-align:left" id="dvT">Devolucion</h3><span class="b" onclick="fcOpen()">Ficha completa</span><span class="b p" onclick="dvSave()">Guardar (Enter)</span><span class="b" onclick="dvClose()">Cancelar (Esc)</span></div>
+  <div class="hint" id="dvFE" style="margin:0 0 0.375rem"></div>
+  <span class="cfl">Perdidas encontradas en el Rating Card (clic para llenar los campos)</span>
+  <div id="dvDays" style="margin-bottom:0.5rem"></div>
+  <div class="f" style="align-items:flex-end">
+    <div style="margin-right:0.625rem"><span class="cfl">FECHA DE PERDIDA</span><input id="dvF" class="cfi" type="text" style="width:8.125rem" onkeydown="dvKey(event)"></div>
+    <div style="margin-right:0.625rem"><span class="cfl">PERDIDA ($)</span><input id="dvL" class="cfi" type="text" style="width:8.125rem" oninput="dvIn('L')" onkeydown="dvKey(event)"></div>
+    <div style="margin-right:0.625rem"><span class="cfl">PORCENTAJE (%)</span><input id="dvP" class="cfi" type="text" style="width:6.25rem;font-size:1.25rem;font-weight:700" oninput="dvIn('P')" onkeydown="dvKey(event)"></div>
+    <div><span class="cfl">REMBOLSO ($)</span><input id="dvM" class="cfi" type="text" style="width:8.125rem;font-size:1.25rem;font-weight:700" oninput="dvIn('M')" onkeydown="dvKey(event)"></div>
+  </div>
+  <div class="f" style="align-items:flex-end">
+    <div style="margin-right:0.625rem"><span class="cfl">LUGAR DE ENTREGA</span><select id="dvS" class="cfi" style="width:12.5rem" onkeydown="dvKey(event)"></select></div>
+    <div><span class="cfl">REPORTA</span><select id="dvR" class="cfi" style="width:15rem" onkeydown="dvKey(event)"></select></div>
+  </div>
+  <span class="cfl">COMENTARIOS</span><input id="dvC" class="cfi" type="text" style="width:100%" onkeydown="dvKey(event)">
+  <div id="dvMsg" style="margin-top:0.625rem;min-height:1.375rem"></div>
+  <div class="hint">El porcentaje se puede cambiar: el reembolso se recalcula (redondeado) y tambien puedes escribir el monto a mano. Se anota en el libro de devoluciones (hoja del mes), en el Informe (hoja DEVOLUCIONES) y en la columna DEVOLUCION de la ficha del Rating Card, en el dia de entrega.</div>
+</div></div>
+
+<div id="mJp" class="ov" style="z-index:28"><div class="pn" style="width:43.75rem">
+  <div class="top"><h3 style="text-align:left" id="jpT">Pago de Jackpot</h3><span class="b p" onclick="jpSave()">Guardar (Enter)</span><span class="b" onclick="jpClose()">Cancelar (Esc)</span></div>
+  <div class="hint" id="jpFE" style="margin:0 0 0.375rem"></div>
+  <div class="f" style="align-items:flex-end">
+    <div style="margin-right:0.625rem"><span class="cfl">MESA</span><select id="jpMesa" class="cfi" style="width:9rem;font-size:1.25rem;font-weight:700"></select></div>
+    <div style="margin-right:0.625rem"><span class="cfl">JUGADA</span><select id="jpJug" class="cfi" style="width:15rem;font-size:1.125rem" onchange="jpIn('J')"></select></div>
+    <div><span class="cfl">PREMIO ($)</span><input id="jpAmt" class="cfi" type="text" autocomplete="off" style="width:9.375rem;font-size:1.25rem;font-weight:700" oninput="jpIn('A')"></div>
+  </div>
+  <div id="jpInfo" class="hint" style="font-size:0.9375rem;margin-top:0.375rem"></div>
+  <div id="jpMsg" style="margin-top:0.5rem;min-height:1.375rem"></div>
+  <div class="hint">Se anota en el libro de Jackpot, hoja del mes en curso, columnas AF a AK (FECHA, CLIENTE, MESA, JUGADA, PREMIO JACKPOT, PREMIO SUPER JACKPOT). FULL y POKER van en PREMIO JACKPOT; ESCALERA DE COLOR y ESCALERA REAL en PREMIO SUPER JACKPOT. El jackpot se descuenta solo (el libro suma las columnas). El premio se llena con el valor de la franja de arriba (redondeado a 5) y se puede cambiar.</div>
+</div></div>
+
+<div id="mFc" class="ov" style="z-index:28"><div class="pn" style="width:45rem;max-height:94%">
+  <div class="top"><h3 style="text-align:left" id="fcT"></h3><span class="b" onclick="fcRefresh()">Actualizar</span><span class="b p" onclick="fcClose()">Cerrar (Esc)</span></div>
+  <div id="fcB"></div>
+</div></div>
+
+<div id="rl" class="ov"><div class="pn" style="width:40rem">
+  <h3 style="margin:0 0 0.375rem;font-size:1.375rem">Para que se va a usar este equipo?</h3>
+  <div class="hint" style="margin:0 0 0.875rem">Solo se pregunta esta vez. Despues puedes cambiarlo desde el boton de conexion.</div>
+  <div class="m" style="width:100%;margin:0 0 0.625rem" onclick="setRole('srv')"><span class="nm">Servidor</span><span class="st">Esta PC tiene los Excel. Es la unica que los abre y escribe en ellos, y comparte los datos con los clientes.</span></div>
+  <div class="m" style="width:100%;margin:0 0 0.625rem" onclick="setRole('cli')"><span class="nm">Cliente</span><span class="st">Solo captura y consulta. No necesita Excel ni archivos: se conecta al servidor con un codigo de sala.</span></div>
+  <div class="hint"><a class="l" onclick="setRole('off')">Voy a usar solo este equipo (sin clientes)</a></div>
+</div></div>
+
+<div id="cf" class="ov"><div class="pn" style="width:48.75rem">
+  <div class="top"><h3 style="text-align:left" id="cftitle">Conexion y archivos</h3><span class="b p" onclick="cfgClose()">Listo</span></div>
+  <div id="cfrows"></div>
+  <div class="hint">Elige cada archivo con "Examinar". El programa cambia solo el mes y el dia en el nombre ({MES}, {AAAA}, {DD}), asi no tienes que volver a configurarlo. Tambien puedes editar la ruta a mano.</div>
+</div></div>
+
+<div id="lk" class="ov" style="display:none;z-index:99;background:#0f241f"><div class="pn" style="width:26.875rem">
+  <h3 id="lkt" style="margin:0 0 0.375rem;font-size:1.375rem"></h3>
+  <div class="hint" id="lkh" style="margin:0 0 0.75rem"></div>
+  <div class="f" id="lk0"><input id="lkp0" type="password" style="flex:1" placeholder="Contrasena actual" onkeydown="if(event.keyCode===13)lkGo()"></div>
+  <div class="f" id="lk1"><input id="lkp1" type="password" style="flex:1" placeholder="Contrasena" onkeydown="if(event.keyCode===13)lkGo()"></div>
+  <div class="f" id="lk2"><input id="lkp2" type="password" style="flex:1" placeholder="Repite la contrasena" onkeydown="if(event.keyCode===13)lkGo()"></div>
+  <div class="f"><span class="b p" id="lkb" onclick="lkGo()">Entrar</span><span class="b" id="lkc" onclick="lockShow('ask')" style="display:none">Cancelar</span></div>
+  <div id="lki" class="hint" style="min-height:1rem"></div>
+  <div id="lkm" class="hint dn" style="min-height:1rem"></div>
+  <div class="hint" id="lkch"><a class="l" onclick="lockShow('change')">Cambiar contrasena</a></div>
+</div></div>
+
+<div id="alBox"></div>
+
+<div id="mAf" class="ov" style="z-index:29"><div class="pn" style="width:42rem">
+  <div class="top"><h3 style="text-align:left" id="afT">Aforo</h3><span class="b" onclick="afCancel()">Cancelar (Esc)</span></div>
+  <div id="afSum"></div>
+  <div id="afCap" style="display:none">
+    <div class="hint" id="afPr" style="font-size:0.9375rem"></div>
+    <span class="nl" id="afMn" style="font-size:1.75rem;color:#eef3ee"></span>
+    <input id="afV" class="bigin" type="text" autocomplete="off" maxlength="3">
+    <div class="f"><span class="b" onclick="afBack()">&larr; Anterior</span><span class="b p" onclick="afNext()">Siguiente (Enter)</span><span class="b" onclick="afSkip()">Saltar esta hora</span></div>
+  </div>
+  <div id="afRev" style="display:none">
+    <div class="hint" id="afRevT" style="font-size:1rem"></div>
+    <div class="f"><span class="b p" onclick="afSave()">Guardar en el Informe (Enter)</span><span class="b" onclick="afCorrect()">Corregir (Esc)</span><span class="b" onclick="afSkip()">Saltar esta hora</span></div>
+  </div>
+  <div id="afGridW" style="margin-top:0.5rem"></div>
+  <div id="afMsg" style="min-height:1.375rem;margin-top:0.375rem"></div>
+  <div class="hint">Enter = siguiente mesa (en blanco = 0) &middot; Flecha arriba = mesa anterior &middot; clic en una mesa para ir a ella &middot; Esc = salir.</div>
+</div></div>
+
+<div id="mHs" class="ov" style="z-index:27"><div class="pn" style="width:38rem">
+  <div class="top"><h3 style="text-align:left" id="hsT">Propinas hostess</h3><span class="b" onclick="hsNames()">Nombres...</span><span class="b" onclick="hsClose()">Cerrar (Esc)</span></div>
+  <div class="hint" id="hsInfo" style="font-size:0.875rem"></div>
+  <div id="hsList" style="margin-top:0.375rem"></div>
+  <div class="r" style="margin-top:0.625rem"><span id="hsSel" style="font-size:1.125rem;font-weight:700;margin-right:0.75rem;min-width:7rem"></span><input id="hsAmt" type="text" autocomplete="off" maxlength="7" onkeydown="hsKey(event)" oninput="hsIn()"><span class="sb" id="hsN" style="font-size:1rem"></span><span class="b p" onclick="hsSave()">Guardar (Enter)</span></div>
+  <div id="hsMsg" style="min-height:1.375rem;margin-top:0.375rem"></div>
+  <div id="hsLog"></div>
+  <div class="hint">Elige el nombre (clic, flechas arriba/abajo o su primera letra), escribe la cantidad y presiona Enter: se guarda al momento y se SUMA a lo que ya tenia, en el Informe (hoja PROPINAS) y en el archivo de Propinas (hoja de la quincena, renglon del dia). Puedes seguir capturando la siguiente mientras guarda. Esc = cerrar.</div>
+</div></div>
+
+<div id="mAp" class="ov" style="z-index:27"><div class="pn" style="width:38rem">
+  <div class="top"><h3 style="text-align:left" id="apT">Ingreso del personal</h3><span class="b" onclick="apClose()">Cerrar (Esc)</span></div>
+  <div class="hint" id="apInfo" style="font-size:0.875rem"></div>
+  <div id="apList" style="margin-top:0.375rem"></div>
+  <div class="f" style="margin-top:0.625rem;align-items:center"><span style="font-size:1.125rem;font-weight:700;margin-right:0.5rem">Hora:</span><input id="apH" class="cfi" type="text" autocomplete="off" maxlength="5" style="width:6.25rem;font-size:1.5rem;font-weight:700;text-align:center;margin-right:0.75rem" oninput="apHin()" title="Editable: escribe HH:MM (por ejemplo 18:30) si lo registras tarde"><span class="b p" id="apBtn" onclick="apSave()">Guardar (Enter)</span></div>
+  <div id="apMsg" style="min-height:1.375rem;margin-top:0.375rem"></div>
+  <div class="hint">Elige el nombre (clic, flechas arriba/abajo o su primera letra) y presiona Enter: se escribe la hora actual en la hoja HORARIO DE JEFATURAS del Informe. La hora sale ya puesta (la actual) pero puedes cambiarla antes de guardar si lo registras tarde: clic en el cuadro Hora, Tab, o escribe un numero; formato HH:MM, por ejemplo 18:30. Si ya tenia una hora, te pregunta antes de cambiarla. Esc = cerrar.</div>
+</div></div>
+
+<div id="mPr" class="ov" style="z-index:27"><div class="pn" style="width:42rem">
+  <div class="top"><h3 style="text-align:left">Premio &middot; ganador de la rifa</h3><span class="b" onclick="prClose()">Cerrar (Esc)</span></div>
+  <div class="hint" id="prInfo" style="font-size:0.875rem"></div>
+  <div id="prList" style="margin-top:0.375rem"></div>
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;margin-top:0.5rem">
+    <div style="margin-right:0.75rem"><span class="cfl">FOLIO</span><input id="prF" class="cfi" type="text" autocomplete="off" maxlength="4" style="width:6.5rem;font-size:1.5rem;font-weight:700;text-align:center" oninput="prFin()"></div>
+    <div style="margin-right:0.75rem;flex:1;min-width:14rem"><span class="cfl">GANADOR</span><input id="prN" class="cfi" type="text" autocomplete="off" maxlength="60" style="width:100%;font-size:1.5rem;font-weight:700" oninput="prNin()"></div>
+    <div><span class="cfl">HORA DE ENTREGA</span><input id="prH" class="cfi" type="text" autocomplete="off" maxlength="5" style="width:6.5rem;font-size:1.5rem;font-weight:700;text-align:center" oninput="prHin()" title="Editable: HH:MM"></div>
+  </div>
+  <span class="cfl">SUP. / PIT BOSS (flechas arriba/abajo o clic)</span>
+  <div id="prP"></div>
+  <div class="f" style="margin-top:0.625rem"><span class="b p" onclick="prSave()">Guardar (Enter)</span></div>
+  <div id="prMsg" style="min-height:1.375rem;margin-top:0.375rem"></div>
+  <div class="hint">Elige la rifa (por defecto sale la primera pendiente del dia: 8:00 PM, 10:30 PM y 1:00 AM), escribe el folio y presiona Enter (si ya trae el nombre del ganador, guarda; si no, te pasa al nombre y Enter para guardar). Re Pag / Av Pag cambian de rifa. La hora de entrega sale con la hora actual y puedes editarla. Se escribe en el archivo de Premios (hoja del mes): hora de entrega, mesa PIT, sup. / pit boss, ganador y folio. Esc = cerrar.</div>
+</div></div>
+
+<div id="mHn" class="ov" style="z-index:28"><div class="pn" style="width:30rem">
+  <div class="top"><h3 style="text-align:left">Nombres de hostess</h3><span class="b p" onclick="hsNamesSave()">Guardar</span><span class="b" onclick="hsNamesClose()">Cancelar</span></div>
+  <span class="cfl">Un nombre por linea, en el orden de las columnas del reporte (de izquierda a derecha, hasta 8)</span>
+  <textarea id="hnT" class="cft" style="height:9rem"></textarea>
+  <label class="alk"><input type="checkbox" id="hnH" checked> Escribir tambien los nombres nuevos en los encabezados del Informe y de las hojas del archivo de Propinas</label>
+  <div class="hint">Los valores se guardan por posicion: el primer nombre va a la primera columna con nombre, y asi sucesivamente. Con la casilla marcada, los encabezados de Excel se actualizan al guardar.</div>
+</div></div>
+
+<div id="mCu" class="ov" style="z-index:29"><div class="pn" style="width:58rem;max-height:96%">
+  <div class="top"><h3 style="text-align:left" id="cuT">Cuadrar</h3><span class="b p" id="cuGo" style="display:none" onclick="cuApply()">Aplicar cambios (Enter)</span><span class="b" onclick="cuRecheck()">Revisar de nuevo</span><span class="b" onclick="cuClose()">Cerrar (Esc)</span></div>
+  <div id="cuBody"></div>
+</div></div>
+
+<div id="mCi" class="ov" style="z-index:29"><div class="pn" style="width:40rem">
+  <div class="top"><h3 style="text-align:left">Cierre &middot; datos para el Informe</h3><span class="b p" onclick="ciGo()">Continuar (Enter)</span><span class="b" onclick="ciClose()">Cancelar (Esc)</span></div>
+  <div id="ciB"></div>
+  <div class="hint">Elige de la lista o escribe uno nuevo (el nuevo se guarda para la proxima vez). Pit Boss, Sub Auditoria y Dealer se escriben en todos los renglones del INFORME que los pidan. El operador se escribe en la columna C desde "Se inicia presentacion de Bancas" hasta la ultima fila con fecha en la columna B. Al terminar se abre el correo.</div>
+</div></div>
+
+<div id="mFn" class="ov" style="z-index:29"><div class="pn" style="width:40rem">
+  <div class="top"><h3 style="text-align:left">Fichas no negociables &middot; INFORME</h3><span class="b p" onclick="fnnGo()">Guardar (Enter)</span><span class="b" onclick="fnnClose()">Cancelar (Esc)</span></div>
+  <div class="hint">Cantidad de piezas presentadas por denominacion (escribe 0 si no hay). Enter pasa al siguiente campo; en el ultimo guarda.</div>
+  <div id="fnB"></div>
+  <span class="cfl">Asi quedara en el INFORME</span>
+  <div id="fnPv" style="background:#0c1d19;border:1px solid #2a5246;border-radius:0.375rem;padding:0.5rem;font-weight:700"></div>
+  <div id="fnMsg" style="min-height:1.25rem;margin-top:0.5rem"></div>
+  <div class="hint">Solo escribe en el renglon "Se presentan FNN" que esta DEBAJO de "Se inicia presentacion de Bancas". Si lo capturas otra vez, se sobrescribe con los nuevos valores.</div>
+</div></div>
+<div id="mCt" class="ov" style="z-index:29"><div class="pn" style="width:46rem;max-height:96%">
+  <div class="top"><h3 style="text-align:left">Cartas &middot; INFORME</h3><span class="b p" onclick="ctGo()">Guardar (Enter)</span><span class="b" onclick="ctClose()">Cancelar (Esc)</span></div>
+  <div class="hint">Elige si cada grupo se presento como zapatos o como mazos y captura las cantidades (0 si no hay). Enter pasa al siguiente campo; en el ultimo guarda.</div>
+  <div id="ctB"></div>
+  <span class="cfl">Asi quedara en el INFORME</span>
+  <div id="ctPv" style="background:#0c1d19;border:1px solid #2a5246;border-radius:0.375rem;padding:0.5rem;font-weight:700"></div>
+  <div id="ctMsg" style="min-height:1.25rem;margin-top:0.5rem"></div>
+  <div class="hint">La serie y el color de los dados se toman solos del renglon "juego de dados ... Serie: # Color:" que esta ARRIBA de "Se inicia presentacion de Bancas" (turno de la manana). Se cargan solos al abrir la ventana; si escribes algo en esos dos campos, se usa lo que escribas. Solo se escribe en el renglon "Dealer presenta" que esta DEBAJO de "Se inicia presentacion de Bancas".</div>
+</div></div>
+<div id="mCj" class="ov" style="z-index:29"><div class="pn" style="width:40rem">
+  <div class="top"><h3 style="text-align:left">Cajas &middot; INFORME</h3><span class="b p" id="cjGoB" onclick="cjGo()" style="display:none">Guardar (Enter)</span><span class="b" onclick="cjClose()">Cancelar (Esc)</span></div>
+  <div id="cjB"></div>
+  <div id="cjMsg" style="min-height:1.25rem;margin-top:0.5rem"></div>
+  <div class="hint">Escribe en el renglon "Jefe de Cajas realiza el cierre y corte de Caja" (debajo de "Se inicia presentacion de Bancas"): el texto, el cajero en la celda de "Cajero:" (solo si te informaron; si no, no escribe nada de cajero y pone "Informa: No Informa") y la hora de ahora en la columna G. Al renglon de arriba le pone la hora de 5 minutos antes.</div>
+</div></div>
+<div id="mJe" class="ov" style="z-index:28"><div class="pn" style="width:40rem">
+  <div class="top"><h3 style="text-align:left">Pago de Jackpot &middot; editar</h3><span class="b p" onclick="jeSave()">Guardar (Enter)</span><span class="b d" onclick="jeDel()">Eliminar</span><span class="b" onclick="jeClose()">Cancelar (Esc)</span></div>
+  <div class="hint" id="jeO"></div>
+  <span class="cfl">Cliente</span><input id="jeN" class="cfi" type="text" maxlength="60" style="width:100%;font-size:1.125rem" oninput="var c=cleanTxt(this.value);if(c!==this.value)this.value=c">
+  <div class="f" style="align-items:flex-end"><div style="margin-right:0.625rem"><span class="cfl">MESA</span><select id="jeMesa" class="cfi" style="width:9rem"></select></div>
+  <div style="margin-right:0.625rem"><span class="cfl">JUGADA</span><select id="jeJug" class="cfi" style="width:15rem"></select></div>
+  <div><span class="cfl">PREMIO ($)</span><input id="jeAmt" class="cfi" type="text" autocomplete="off" style="width:9.375rem;font-size:1.25rem;font-weight:700" oninput="this.value=this.value.replace(/[^0-9.]/g,'')"></div></div>
+  <div id="jeMsg" style="margin-top:0.5rem;min-height:1.25rem"></div>
+  <div class="hint">Se corrige o se borra la fila en el libro de Jackpot (hoja del mes). El libro recalcula solo el jackpot y el super jackpot.</div>
+</div></div>
+<div id="mAlc" class="ov" style="z-index:31"><div class="pn" style="width:46rem;max-height:94%">
+  <div class="top"><h3 style="text-align:left">Alarmas</h3><span class="b p" onclick="almCfgSave()">Guardar</span><span class="b" onclick="almCfgClose()">Cancelar</span></div>
+  <span class="cfl">Voz de Windows (para los avisos con texto)</span><select id="alVoice" class="cfi" style="width:26rem"></select>
+  <div id="alCf"></div>
+</div></div>
+
+<!-- Scripts: Capa de plataforma antes de app.js y mobile.js después -->
+<script src="platform.js"></script>
+<script src="app.js"></script>
+<script src="mobile.js"></script>
+</body>
+</html>

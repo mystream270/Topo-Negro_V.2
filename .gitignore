@@ -1,0 +1,30 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.env
+debug.keystore
+
+# Node & Capacitor
+node_modules/
+package-lock.json
+
+# Android build outputs & Keystores
+android/build/
+app/build/
+*.keystore
+*.jks
+gradle.properties
+

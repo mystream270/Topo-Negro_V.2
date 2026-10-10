@@ -1,0 +1,22 @@
+{
+  "name": "cierre-fichas-capri",
+  "version": "1.0.0",
+  "description": "Cliente móvil Android para Cierre de Fichas Capri GDL",
+  "main": "www/index.html",
+  "scripts": {
+    "build": "echo 'No build step required for plain HTML/JS'",
+    "cap:sync": "cap sync",
+    "cap:add:android": "cap add android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/app-launcher": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/clipboard": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0",
+    "@capacitor-community/keep-awake": "^7.0.0",
+    "@capacitor-community/text-to-speech": "^6.1.0"
+  }
+}

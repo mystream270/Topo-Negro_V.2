@@ -1,0 +1,11 @@
+{
+	"appId": "mx.capri.cierrefichas",
+	"appName": "Cierre Fichas",
+	"webDir": "www",
+	"server": {
+		"androidScheme": "http"
+	},
+	"android": {
+		"allowMixedContent": true
+	}
+}

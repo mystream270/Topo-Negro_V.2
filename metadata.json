@@ -1,0 +1,6 @@
+{
+  "name": "Cierre de Fichas",
+  "description": "Cliente móvil Android para Cierre de Fichas y Registro de Ingresos/Retiros en Capri GDL",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

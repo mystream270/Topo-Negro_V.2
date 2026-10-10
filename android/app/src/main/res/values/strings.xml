@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cierre Fichas</string>
+    <string name="title_activity_main">Cierre Fichas</string>
+    <string name="package_name">mx.capri.cierrefichas</string>
+    <string name="custom_url_scheme">mx.capri.cierrefichas</string>
+</resources>
