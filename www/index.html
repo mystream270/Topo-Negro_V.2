@@ -349,25 +349,38 @@
 
     var readyTimeout = new Promise(function(resolve) {
       setTimeout(function() {
-        console.warn('[INIT] Timeout de 3s en PLATFORM.readyPromise. Cargando scripts con respaldo...');
+        console.warn('[INIT] Timeout de 5s en PLATFORM.readyPromise. Cargando scripts con respaldo...');
         resolve();
-      }, 3000);
+      }, 5000);
     });
 
     var readyGate = (window.PLATFORM && window.PLATFORM.readyPromise)
       ? Promise.race([window.PLATFORM.readyPromise, readyTimeout])
       : readyTimeout;
 
+    var arranque = null;
+
     readyGate.then(function() {
       return loadScript('app.js');
     }).then(function() {
+      arranque = window.onload;
+      window.onload = null;
       return loadScript('mobile.js');
     }).then(function() {
-      if (typeof window.onload === 'function') {
-        window.onload();
+      if (!window.__arrancado && typeof arranque === 'function') {
+        window.__arrancado = true;
+        arranque();
       }
     }).catch(function(err) {
       console.error('[INIT] Error fatal inicializando la aplicación:', err);
+      var d = document.getElementById('diagErrDiv');
+      if (!d) {
+        d = document.createElement('div');
+        d.id = 'diagErrDiv';
+        d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#d32f2f;color:#fff;padding:12px 16px;font-size:14px;font-family:monospace;font-weight:bold;z-index:999999;box-shadow:0 3px 12px rgba(0,0,0,0.6);word-break:break-word;white-space:pre-wrap;';
+        document.body.appendChild(d);
+      }
+      d.innerHTML = '<b>Error cargando scripts:</b>\n' + String(err && (err.stack || err.message) || err);
     });
   })();
 </script>

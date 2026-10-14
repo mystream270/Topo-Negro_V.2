@@ -5,13 +5,39 @@
 (function() {
   'use strict';
 
+  // Registro de claves modificadas por la app después de arrancar
+  var writtenKeys = {};
+
   // Espacio de nombres de la plataforma
   window.PLATFORM = {
     ready: false,
     storageCache: {},
-    deviceId: ''
+    deviceId: '',
+    writtenKeys: writtenKeys
   };
   var PLATFORM = window.PLATFORM;
+
+  // Precarga SÍNCRONA al inicio del archivo desde localStorage
+  try {
+    for (var lsi = 0; lsi < localStorage.length; lsi++) {
+      var lsKey = localStorage.key(lsi);
+      if (lsKey && lsKey.indexOf('cierre_fso_') === 0) {
+        var cleanKey = lsKey.substring('cierre_fso_'.length);
+        PLATFORM.storageCache[cleanKey] = localStorage.getItem(lsKey);
+      }
+    }
+    if (PLATFORM.storageCache['cierre_device_id']) {
+      PLATFORM.deviceId = PLATFORM.storageCache['cierre_device_id'];
+    } else {
+      var savedDevId = localStorage.getItem('cierre_fso_cierre_device_id');
+      if (savedDevId) {
+        PLATFORM.deviceId = savedDevId;
+        PLATFORM.storageCache['cierre_device_id'] = savedDevId;
+      }
+    }
+  } catch (eLsPreload) {
+    console.warn('[PLATFORM] Error en precarga síncrona de localStorage:', eLsPreload);
+  }
 
   // 1. Acceso a plugins de Capacitor si están disponibles en window.Capacitor.Plugins
   function getCapPlugin(name) {
@@ -43,6 +69,7 @@
 
   // 4. Persistencia en segundo plano
   function persistKey(key, val) {
+    writtenKeys[key] = true;
     var pref = getCapPlugin('Preferences');
     if (pref && typeof pref.set === 'function') {
       try {
@@ -59,6 +86,7 @@
   }
 
   function deletePersistedKey(key) {
+    writtenKeys[key] = true;
     var pref = getCapPlugin('Preferences');
     if (pref && typeof pref.remove === 'function') {
       try {
@@ -389,16 +417,18 @@
   // 14. Inicialización asíncrona de la plataforma al cargar el documento
   var initPromise = (async function initPlatform() {
     try {
-      // Cargar Preferences a la caché en memoria
+      // Cargar Preferences a la caché en memoria solo si no fue modificada por la app después de arrancar
       var pref = getCapPlugin('Preferences');
       if (pref && typeof pref.keys === 'function') {
         var res = await pref.keys();
         if (res && res.keys) {
           for (var i = 0; i < res.keys.length; i++) {
             var k = res.keys[i];
-            var valObj = await pref.get({ key: k });
-            if (valObj && valObj.value !== null) {
-              PLATFORM.storageCache[k] = valObj.value;
+            if (!writtenKeys[k]) {
+              var valObj = await pref.get({ key: k });
+              if (valObj && valObj.value !== null && !writtenKeys[k]) {
+                PLATFORM.storageCache[k] = valObj.value;
+              }
             }
           }
         }
@@ -407,13 +437,13 @@
       console.warn('Error inicializando Preferences:', e);
     }
 
-    // Sincronizar con localStorage como respaldo
+    // Sincronizar con localStorage como respaldo adicional
     try {
       for (var j = 0; j < localStorage.length; j++) {
         var lk = localStorage.key(j);
         if (lk && lk.indexOf('cierre_fso_') === 0) {
           var fsoKey = lk.substring('cierre_fso_'.length);
-          if (!PLATFORM.storageCache[fsoKey]) {
+          if (!writtenKeys[fsoKey] && !PLATFORM.storageCache[fsoKey]) {
             PLATFORM.storageCache[fsoKey] = localStorage.getItem(lk);
           }
         }
@@ -423,7 +453,7 @@
     }
 
     // Obtener o generar Device ID persistente (una sola vez y verificar que se guardó)
-    var devId = PLATFORM.storageCache['cierre_device_id'];
+    var devId = PLATFORM.deviceId || PLATFORM.storageCache['cierre_device_id'];
     if (!devId) {
       try {
         devId = localStorage.getItem('cierre_fso_cierre_device_id');
@@ -456,6 +486,32 @@
     console.log('[PLATFORM] Capa Shim lista. Device ID:', PLATFORM.deviceId);
   })();
 
-  PLATFORM.readyPromise = initPromise;
+  // PLATFORM.readyPromise NUNCA debe bloquear el arranque (timeout de 5000 ms garantizado)
+  var timeoutPromise = new Promise(function(resolve) {
+    setTimeout(function() {
+      if (!PLATFORM.ready) {
+        console.warn('[PLATFORM] Timeout de 5000 ms en Preferences. Continuando arranque con respaldo...');
+        if (!PLATFORM.deviceId) {
+          try {
+            PLATFORM.deviceId = PLATFORM.storageCache['cierre_device_id'] ||
+              localStorage.getItem('cierre_fso_cierre_device_id') ||
+              ('ANDROID-' + Math.random().toString(36).substring(2, 10).toUpperCase());
+          } catch (e) {
+            PLATFORM.deviceId = 'ANDROID-DEFAULT';
+          }
+        }
+        PLATFORM.ready = true;
+      }
+      resolve();
+    }, 5000);
+  });
+
+  PLATFORM.readyPromise = Promise.race([
+    initPromise.catch(function(err) {
+      console.warn('[PLATFORM] Error en initPlatform:', err);
+      PLATFORM.ready = true;
+    }),
+    timeoutPromise
+  ]);
 
 })();

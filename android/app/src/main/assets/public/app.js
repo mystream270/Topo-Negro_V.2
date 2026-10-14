@@ -4056,18 +4056,44 @@ function cuApply(){
 
 /* ---- Inicializacion ---- */
 window.onload=function(){
-  function startInit(){
-    try{var aw=screen.availWidth,ah=screen.availHeight,ww=Math.min(aw,Math.max(Math.min(900,aw),Math.round(aw*.85))),wh=Math.min(ah,Math.max(Math.min(600,ah),Math.round(ah*.9)));window.resizeTo(ww,wh);window.moveTo(Math.round((aw-ww)/2),Math.round((ah-wh)/2))}catch(e){}
-    fit();
-    FE=fechaOp();initState();cfgLoad();selBar();regBind();render();showView('reg');
-    if(window.DEBUG_DIAG)console.log('[FASE-B-DIAG] PLATFORM.ready:', (window.PLATFORM && window.PLATFORM.ready), '| devId():', devId(), '| CFG.dsalt:', CFG.dsalt, '| CFG.dev.length:', (CFG.dev ? CFG.dev.length : 0));
-    if(!CFG.nt.mode)CFG.nt.mode='cli'; // Forzar rol cliente si está vacío
-    tfaGate(function(){lockShow(CFG.pw&&CFG.pw.h?'ask':'set',arranque)});
+  function showFatalErr(e){
+    var m = String((e && (e.stack || e.message)) || e || 'Error desconocido');
+    console.error('[STARTUP ERROR]', m);
+    var d = document.getElementById('diagErrDiv');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'diagErrDiv';
+      d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#d32f2f;color:#fff;padding:12px 16px;font-size:14px;font-family:monospace;font-weight:bold;z-index:999999;box-shadow:0 3px 12px rgba(0,0,0,0.6);word-break:break-word;white-space:pre-wrap;';
+      document.body.appendChild(d);
+    }
+    d.innerHTML = '<b>Error en arranque de la aplicación:</b>\n' + m;
   }
-  if(window.PLATFORM&&window.PLATFORM.readyPromise){
-    window.PLATFORM.readyPromise.then(startInit);
-  }else{
-    startInit();
+
+  function startInit(){
+    try{
+      try{var aw=screen.availWidth,ah=screen.availHeight,ww=Math.min(aw,Math.max(Math.min(900,aw),Math.round(aw*.85))),wh=Math.min(ah,Math.max(Math.min(600,ah),Math.round(ah*.9)));window.resizeTo(ww,wh);window.moveTo(Math.round((aw-ww)/2),Math.round((ah-wh)/2))}catch(e){}
+      fit();
+      FE=fechaOp();initState();cfgLoad();selBar();regBind();render();showView('reg');
+      if(window.DEBUG_DIAG)console.log('[FASE-B-DIAG] PLATFORM.ready:', (window.PLATFORM && window.PLATFORM.ready), '| devId():', devId(), '| CFG.dsalt:', CFG.dsalt, '| CFG.dev.length:', (CFG.dev ? CFG.dev.length : 0));
+      if(!CFG.nt.mode)CFG.nt.mode='cli'; // Forzar rol cliente si está vacío
+      tfaGate(function(){lockShow(CFG.pw&&CFG.pw.h?'ask':'set',arranque)});
+    }catch(err){
+      showFatalErr(err);
+    }
+  }
+
+  try{
+    if(window.PLATFORM&&window.PLATFORM.readyPromise){
+      window.PLATFORM.readyPromise.then(function(){
+        try { startInit(); } catch(e) { showFatalErr(e); }
+      }).catch(function(e){
+        showFatalErr('Error en PLATFORM.readyPromise: ' + (e && (e.stack || e.message) || e));
+      });
+    }else{
+      startInit();
+    }
+  }catch(eTop){
+    showFatalErr(eTop);
   }
 };
 function arranque(){
