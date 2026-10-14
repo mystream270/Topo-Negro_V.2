@@ -11,6 +11,7 @@
     storageCache: {},
     deviceId: ''
   };
+  var PLATFORM = window.PLATFORM;
 
   // 1. Acceso a plugins de Capacitor si están disponibles en window.Capacitor.Plugins
   function getCapPlugin(name) {
@@ -181,7 +182,7 @@
 
   // 7. WScript.Network Shim
   function FakeWScriptNetwork() {
-    this.ComputerName = PLATFORM.deviceId || 'ANDROID-CLIENT';
+    this.ComputerName = PLATFORM.deviceId || '';
     this.UserDomain = 'ANDROID';
     this.UserName = 'MOVIL';
   }
@@ -421,12 +422,33 @@
       console.warn('Error sincronizando localStorage:', e);
     }
 
-    // Obtener o generar Device ID persistente
+    // Obtener o generar Device ID persistente (una sola vez y verificar que se guardó)
     var devId = PLATFORM.storageCache['cierre_device_id'];
+    if (!devId) {
+      try {
+        devId = localStorage.getItem('cierre_fso_cierre_device_id');
+      } catch (e) {}
+    }
     if (!devId) {
       devId = 'ANDROID-' + Math.random().toString(36).substring(2, 10).toUpperCase();
       PLATFORM.storageCache['cierre_device_id'] = devId;
       persistKey('cierre_device_id', devId);
+      // Verificar inmediatamente que se guardó (escribe y vuelve a leer)
+      if (pref && typeof pref.get === 'function') {
+        try {
+          var checkVal = await pref.get({ key: 'cierre_device_id' });
+          if (!checkVal || !checkVal.value) {
+            await pref.set({ key: 'cierre_device_id', value: devId });
+          }
+        } catch (eCheck) {
+          console.warn('[PLATFORM] Error verificando cierre_device_id en Preferences:', eCheck);
+        }
+      }
+      try {
+        if (!localStorage.getItem('cierre_fso_cierre_device_id')) {
+          localStorage.setItem('cierre_fso_cierre_device_id', devId);
+        }
+      } catch (eLs) {}
     }
     PLATFORM.deviceId = devId;
 

@@ -8,7 +8,7 @@ var M=[{n:'BJMD',c:0,p:'C'},{n:'BJ2',c:1,p:'D'},{n:'FB2',c:2,p:'E'},{n:'FREE BET
  {n:'RULETA',c:11,p:'N'},{n:'CRAPS',c:12,p:'O'},{n:'MB3',c:13},{n:'PRIV 1 (BJ4)',c:14,p:'P'},{n:'PRIV 2 (MB4)',c:15,p:'Q'}];
 var KS=[['ban','Banco de fichas'],['jp','Jackpot'],['inf','Informe (propinas, acumulados e ingresos/retiros)']];
 var KP=KS.concat([['rc','Rating Card (lista de clientes y rating)'],['dev','Devoluciones (libro de reembolsos, una hoja por mes)'],['pro','Propinas (hostess; el archivo del mes con las dos quincenas)'],['pre','Premios (rifas de 8 pm, 10:30 pm y 1 am; el archivo del mes, hoja con el nombre del mes y el ano)']]);
-var CFG={pat:{ban:'',jp:'',inf:'',rc:''},nt:{mode:'',url:'https://ntfy.sh',room:'',name:'',since:0}},FE=null,V=[],P=[],A=[],BANK=null,USE=null,INF=null,JP=null;
+var CFG={pat:{ban:'',jp:'',inf:'',rc:''},nt:{mode:'',url:'https://ntfy.sh',room:'',name:'',since:0},title:'Registro \u00b7 Capri GDL'},FE=null,V=[],P=[],A=[],BANK=null,USE=null,INF=null,JP=null;
 var pend={},timer=null,busy=false,again=false,showEmpty=false,errs={};
 var fso=new ActiveXObject("Scripting.FileSystemObject");
 var TOT={ti:0,tr:0,ok:false};
@@ -20,9 +20,11 @@ function pad(n){return (n<10?'0':'')+n}
 function fmtF(d){return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()}
 function ser(d){return Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(1899,11,30))/86400000)}
 function setStat(t){$('stat').innerHTML=t}
+function hhmm(d){d=d||new Date();return pad(d.getHours())+':'+pad(d.getMinutes())}
+function errMsg(e){try{return String((e&&(e.message||e.description))||e||'error sin descripcion')}catch(zz){return 'error sin descripcion'}}
 
-/* ---- fecha de operacion: de 00:00 a 6:00 am cuenta como el dia anterior ---- */
-function fechaOp(){var d=new Date();if(d.getHours()<6)d.setDate(d.getDate()-1);return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+/* ---- fecha de operacion: de 00:00 a 8:00 am cuenta como el dia anterior ---- */
+function fechaOp(){var d=new Date();if(d.getHours()<8)d.setDate(d.getDate()-1);return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
 function moveDay(k){closeAll();HIST=[];REDO=[];RS.hist=null;RS.hsel=null;RS.hqNext=0;FE=new Date(FE.getFullYear(),FE.getMonth(),FE.getDate()+k);BANK=INF=JP=null;TOT.ti=TOT.tr=0;initState();render();sync(true)}
 function initState(){V=[];P=[];A=[];var c,r;for(c=0;c<16;c++){V.push([]);for(r=0;r<10;r++)V[c].push(0)}for(c=0;c<M.length;c++){P.push('');A.push('')}}
 
@@ -30,8 +32,8 @@ function initState(){V=[];P=[];A=[];var c,r;for(c=0;c<16;c++){V.push([]);for(r=0
 function base(){return window.base ? window.base() : (function(){var p=decodeURIComponent(location.pathname).replace(/\//g,"\\").replace(/^\\([A-Za-z]:)/,"$1");return p.substring(0,p.lastIndexOf("\\")+1)})()}
 function cfgPath(){return base()+"cierre_config.json"}
 function cfgLoad(){try{if(fso.FileExists(cfgPath())){var t=fso.OpenTextFile(cfgPath(),1,false,-1),s=t.ReadAll();t.Close();var o=JSON.parse(s);if(o&&o.pat){CFG=o}}}catch(e){}
-  CFG.nt=CFG.nt||{};if(!CFG.nt.mode)CFG.nt.mode='';if(!CFG.nt.url)CFG.nt.url='https://ntfy.sh';if(!CFG.nt.name)CFG.nt.name='';if(!CFG.nt.since)CFG.nt.since=0;if(!CFG.nt.room)CFG.nt.room='';if(!CFG.nt.dir)CFG.nt.dir='';RG();mnApply()}
-function cfgSave(){try{var t=fso.CreateTextFile(cfgPath(),true,true);t.Write(JSON.stringify(CFG));t.Close()}catch(e){setStat('No pude guardar la configuracion: '+e.message)}}
+  CFG.nt=CFG.nt||{};if(!CFG.nt.mode)CFG.nt.mode='';if(!CFG.nt.url)CFG.nt.url='https://ntfy.sh';if(!CFG.nt.name)CFG.nt.name='';if(!CFG.nt.since)CFG.nt.since=0;if(!CFG.nt.room)CFG.nt.room='';if(!CFG.nt.dir)CFG.nt.dir='';if(CFG.title===undefined)CFG.title='Registro \u00b7 Capri GDL';RG();mnApply()}
+function cfgSave(){try{var t=fso.CreateTextFile(cfgPath(),true,true);t.Write(JSON.stringify(CFG));t.Close()}catch(e){setStat('No pude guardar la configuracion: '+errMsg(e))}}
 function resolve(p){return p.replace(/\{MES\}/g,MES[FE.getMonth()]).replace(/\{AAAA\}/g,FE.getFullYear()).replace(/\{DD\}/g,pad(FE.getDate()))}
 function rp(k){return CFG.pat[k]?resolve(CFG.pat[k]):''}
 function tok(p,k){
@@ -209,9 +211,9 @@ function sync(all){
       try{xl.EnableEvents=false;xl.AutomationSecurity=3}catch(e){}
       KS.forEach(function(k){
         var w=[],x;for(x in work)if(work[x].f===k[0])w.push(work[x]);
-        try{doFile(xl,k[0],w);errs[k[0]]=''}catch(e){errs[k[0]]=k[1]+': '+e.message;for(var j=0;j<w.length;j++)pend[w[j].f+'|'+w[j].s+'|'+w[j].a]=w[j]}
+        try{doFile(xl,k[0],w);errs[k[0]]=''}catch(e){errs[k[0]]=k[1]+': '+errMsg(e);for(var j=0;j<w.length;j++)pend[w[j].f+'|'+w[j].s+'|'+w[j].a]=w[j]}
       });
-    }catch(e){errs.xl='No pude abrir Excel: '+e.message}
+    }catch(e){errs.xl='No pude abrir Excel: '+errMsg(e)}
     finally{try{if(xl)xl.Quit()}catch(e){}}
     busy=false;applyRead();render();refreshWins();
     var m=[],k;for(k in errs)if(errs[k])m.push(errs[k]);
@@ -265,7 +267,7 @@ function ntDirFind(){
 function ntDirPick(){
   try{var sa=new ActiveXObject('Shell.Application'),f=sa.BrowseForFolder(0,'Elige la carpeta donde esta ntfy.exe',0x41,0);
     if(f){CFG.nt.dir=f.Self.Path;cfgRows()}}
-  catch(e){alert('No pude abrir el selector de carpetas: '+e.message)}
+  catch(e){alert('No pude abrir el selector de carpetas: '+errMsg(e))}
 }
 function ntDirInfo(){
   var x=String((CFG.nt&&CFG.nt.dir)||'').replace(/\\+$/,'');
@@ -286,7 +288,7 @@ function ntSrvAuto(){
     wsh.CurrentDirectory=d;
     wsh.Run('"'+d+'\\ntfy.exe" serve --config "'+yml+'"',0,false);
     return true
-  }catch(e){try{setStat('No pude iniciar ntfy solo: '+e.message)}catch(e2){}return false}
+  }catch(e){try{setStat('No pude iniciar ntfy solo: '+errMsg(e))}catch(e2){}return false}
 }
 function ntBase(){return (CFG.nt.url||'https://ntfy.sh').replace(/\/+$/,'')}
 function ntTopic(k){return String(CFG.nt.room).replace(/[^A-Za-z0-9_-]/g,'-')+'-'+k}
@@ -294,7 +296,7 @@ function netSet(t,ok){$('net').innerHTML='<span class="'+(ok?'up':'dn')+'">&#967
 function ntPub(k,obj,cb){
   try{var x=new XMLHttpRequest();x.open('POST',ntBase()+'/'+ntTopic(k),true);
     x.onreadystatechange=function(){if(x.readyState===4){var ok=x.status>=200&&x.status<300;netSet(ok?'en linea':'error '+(x.status||'sin respuesta'),ok);if(cb)cb(ok,x.status)}};
-    x.send(JSON.stringify(obj))}catch(e){netSet('error: '+e.message,false);if(cb)cb(false,0)}
+    x.send(JSON.stringify(obj))}catch(e){netSet('error: '+errMsg(e),false);if(cb)cb(false,0)}
 }
 function ntStop(){clearTimeout(NT.tm);clearInterval(NT.poll);NT.poll=null;if(NT.ws){try{NT.ws.onclose=null;NT.ws.close()}catch(e){}NT.ws=null}}
 function ntStart(){
@@ -321,7 +323,7 @@ function ntPollMode(top){
     x.onreadystatechange=function(){if(x.readyState===4){
       if(x.status===200){var ls=x.responseText.split('\n'),i;for(i=0;i<ls.length;i++)if(ls[i])ntMsg(ls[i]);netSet('en linea (modo lento)',true)}
       else netSet('error '+(x.status||'sin respuesta'),false)}};
-    x.send()}catch(e){netSet('error: '+e.message,false)}}
+    x.send()}catch(e){netSet('error: '+errMsg(e),false)}}
   netSet('en linea (modo lento)',true);go();NT.poll=setInterval(go,15000);
 }
 function ntMsg(txt){
@@ -416,6 +418,7 @@ function dif(s){var d=s.v-s.a;return '<span class="'+(d>0?'up':d<0?'dn':'')+'">'
 function inUse(c,r){return (USE&&USE[c][r])||(BANK&&BANK.ap[c][r]!==0)||V[c][r]!==0}
 function visible(i){var m=M[i],r;if(m.c===undefined||showEmpty)return true;for(r=0;r<10;r++)if(inUse(m.c,r))return true;return false}
 function kt(l,v,c,x){return '<div class="kw"><div class="kt'+(c?' '+c:'')+'"><small>'+l+'</small><b>'+v+'</b>'+(x||'')+'</div></div>'}
+function rgTitleSave(){CFG.title=$('rgH1').innerText.replace(/\n/g,' ');cfgSave()}
 function titleSet(){var t='Cierre de fichas - Capri GDL'+(cli()?' - CLIENTE':'');if(document.title!==t)document.title=t}
 function render(){
   titleSet();jpBarRender();
@@ -705,7 +708,7 @@ function tfaStart(){
         TFA.tm=setTimeout(tfaPoll,3000)}
       else lkMsg('No pude contactar a ntfy (codigo '+(x.status||'sin respuesta')+'). Revisa la conexion y reenvia la solicitud.')};
     x.send(txt);
-  }catch(e){lkMsg('No pude enviar la solicitud: '+esc(e.message))}
+  }catch(e){lkMsg('No pude enviar la solicitud: '+esc(errMsg(e)))}
 }
 function tfaPoll(){
   if(new Date().getTime()-TFA.t0>TFA.wait*1000){lkMsg('Se agoto el tiempo sin respuesta. Reenvia la solicitud.');return}
@@ -776,6 +779,7 @@ function regRender(){
   if(!$('rgL'))return;
   var w=[],i,x,h;
   $('rgF').innerHTML=fmtF(FE);$('rgM').innerHTML=esc(RG().mon||'-');
+  if(document.activeElement!==$('rgH1'))$('rgH1').innerText=CFG.title||'';
   $('tI').className='b tp ing'+(RS.t==='I'?' on':'');$('tR').className='b tp ret'+(RS.t==='R'?' on':'');$('tD').className='b tp dev'+(RS.t==='D'?' on':'');$('tJ').className='b tp jp'+(RS.t==='J'?' on':'');$('tP').className='b tp pr'+(RS.t==='P'?' on':'');
   $('nlb').innerHTML=RS.t==='D'?'Nombre &middot; Enter consulta la devolucion':(RS.t==='J'?'Nombre &middot; Enter abre el pago de jackpot':(RS.t==='P'?'Nombre del ganador &middot; Enter abre la captura del premio':'Nombre'));
   $('rgN').disabled=false;
@@ -796,7 +800,7 @@ function jobNext(){
   if(busy||!JOBQ.length)return;
   busy=true;var fn=JOBQ.shift();
   setTimeout(function(){
-    try{fn()}catch(e){RS.busy=false;regMsg('Error: '+esc(e.message),'dn')}
+    try{fn()}catch(e){RS.busy=false;regMsg('Error: '+esc(errMsg(e)),'dn')}
     busy=false;
     if(again){again=false;sync(true);return}
     jobNext()},30)}
@@ -829,7 +833,7 @@ function jobLoadCl(){
       for(i=0;i<v.length;i++){s=v[i][0];if(!isEmp(s)&&typeof s==='string'){s=String(s).replace(/^\s+|\s+$/g,'');if(s)a.push({n:proper(s),k:nkey(s)})}}
       var hh=lhash(a);RS.clChg=!!(RS.clH&&RS.clH!==hh);RS.cl=a;RS.clOk=true;RS.clH=hh}
     finally{closeBk(ob)}
-  }catch(e){RS.clErr=e.message;if(prevOk)RS.clOk=true}
+  }catch(e){RS.clErr=errMsg(e);if(prevOk)RS.clOk=true}
   finally{xlQuit(xl)}
   regRender();
   if(RS.rl){RS.rl=false;if(RS.clErr)regMsg('No pude recargar la lista: '+esc(RS.clErr),'dn');else regMsg('Lista recargada: '+RS.cl.length+' clientes.','up')}
@@ -844,7 +848,7 @@ function regTotRefresh(){
       xl=xlStart();var ob=openBook(xl,p,false);
       try{var ws=findSheet(ob.wb,'INGRESOS Y RETIROS'),tt=totIR(ws);TOT.ti=tt.ti;TOT.tr=tt.tr;TOT.ok=true;regMsg('Totales actualizados','up')}
       finally{closeBk(ob)}
-    }catch(e){regMsg('No pude leer los totales: '+esc(e.message),'dn')}
+    }catch(e){regMsg('No pude leer los totales: '+esc(errMsg(e)),'dn')}
     finally{xlQuit(xl)}
     regRender();if(srv())ntPub('st',{k:'v',ti:TOT.ti,tr:TOT.tr})})}
 
@@ -1159,9 +1163,9 @@ function jobSave(tx){
     }finally{closeBk(ob)}
     if(!isIgn(tx.nom)){
       if(!rp('rc'))rcErr='falta la ruta del Rating Card';
-      else{try{var rcr=rcUpdate(xl,tx.nom,tx.mesa,rows,tx.dia);rcOk=true;if(rcr&&rcr.newList)nwMark(tx.nom)}catch(e){rcErr=e.message}}
+      else{try{var rcr=rcUpdate(xl,tx.nom,tx.mesa,rows,tx.dia);rcOk=true;if(rcr&&rcr.newList)nwMark(tx.nom)}catch(e){rcErr=errMsg(e)}}
     }else rcOk=true;
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   if(err&&wrote)err='REVISA EL INFORME: se escribio en la fila '+row+' pero fallo despues ('+err+'). NO lo repitas sin revisar.';
   if(err&&!wrote&&/solo lectura/i.test(err)&&!tx.rty){tx.rty=1;if(killOrphans()>0){jobSave(tx);return}}
@@ -1209,17 +1213,18 @@ function rcUpdate(xl,nom,mesa,rows,dia){
 function regRetry(silent){
   if(!RS.rcp.length||cli())return;if(!silent)regMsg('Reintentando Rating Card...','');
   jobRun(function(){
-    var xl=null,left=[],okn=0,i,it,rows,pi=rp('inf'),nuevos=[],k,j,f;
+    var xl=null,left=[],okn=0,i,it,rows,pi=rp('inf'),nuevos=[],k,j,f,errs=[];
     if(RS.roErr){RS.roErr=false;killOrphans()}
     try{xl=xlStart();var ob=openBook(xl,pi,false);
       try{var ws=findSheet(ob.wb,'INGRESOS Y RETIROS');rows={i:rr(ws,'D39:J'+lastRow(ws)),r:rr(ws,'L39:R'+lastRow(ws))}}finally{closeBk(ob)}
-      for(i=0;i<RS.rcp.length;i++){it=RS.rcp[i];try{var rr0=rcUpdate(xl,it.nom,it.mesa,rows,it.dia||FE.getDate());okn++;if(rr0&&rr0.newList)nwMark(it.nom);if(rr0&&rr0.list)hsListDrop(it.nom);else nuevos.push(it.nom)}catch(e){left.push(it);if(/solo lectura/i.test(e.message))RS.roErr=true}}
-    }catch(e){left=RS.rcp.slice(0);nuevos=[]}
+      for(i=0;i<RS.rcp.length;i++){it=RS.rcp[i];try{var rr0=rcUpdate(xl,it.nom,it.mesa,rows,it.dia||FE.getDate());okn++;if(rr0&&rr0.newList)nwMark(it.nom);if(rr0&&rr0.list)hsListDrop(it.nom);else nuevos.push(it.nom)}catch(e){left.push(it);errs.push(it.nom+': '+errMsg(e));if(/solo lectura/i.test(errMsg(e)))RS.roErr=true}}
+    }catch(e){left=RS.rcp.slice(0);nuevos=[];errs=['al abrir el Informe: '+errMsg(e)]}
     finally{xlQuit(xl)}
     RS.rcp=left;CFG.rcp=left;cfgSave();
+    /* los que ya quedaron en el Rating Card entran a la lista desplegable de todos los equipos */
     if(RS.clOk)for(i=0;i<nuevos.length;i++){k=nkey(nuevos[i]);f=false;for(j=0;j<RS.cl.length;j++)if(RS.cl[j].k===k){f=true;break}
       if(!f){RS.cl.push({n:nuevos[i],k:k});RS.clH=lhash(RS.cl);if(srv())ntPub('st',{k:'a',n:nuevos[i]})}}
-    if(!silent||okn)regMsg(left.length?'Quedan '+left.length+' pendientes del Rating Card.':'Rating Card al dia ('+okn+').',left.length?'dn':'up');
+    if(!silent||okn)regMsg(left.length?'Quedan '+left.length+' pendientes del Rating Card: '+esc(errs.join(' | ')):'Rating Card al dia ('+okn+').',left.length?'dn':'up');
     regRender()})}
 setInterval(function(){if(!cli()&&RS.rcp&&RS.rcp.length&&!busy&&!JOBQ.length&&rp('inf'))regRetry(true)},60000);
 
@@ -1260,7 +1265,7 @@ function jobHistRead(cb){
     try{var ws=findSheet(ob.wb,'INGRESOS Y RETIROS'),ul=lastRow(ws),tt;
       h=hsBuild(rr(ws,'D39:J'+ul),rr(ws,'L39:R'+ul));tt=totIR(ws);TOT.ti=tt.ti;TOT.tr=tt.tr;TOT.ok=true}
     finally{closeBk(ob)}
-  }catch(ex){err=ex.message}
+  }catch(ex){err=errMsg(ex)}
   finally{xlQuit(xl)}
   cb(h,err)}
 function histRefresh(fresh,force){
@@ -1472,10 +1477,10 @@ function jobHistOp(op,by,done){
         if(r1&&r1.newList)nwMark(names[i].nom);
         if(r1&&r1.card)extra.push('ficha de '+names[i].nom+' quitada del Rating Card');
         if(r1&&r1.list){res.rm.push(names[i].nom);extra.push(names[i].nom+' quitado de la lista de clientes')}}
-      catch(ex2){rcErr.push(names[i].nom+': '+ex2.message);if(/solo lectura/i.test(ex2.message))RS.roErr=true;
+      catch(ex2){rcErr.push(names[i].nom+': '+errMsg(ex2));if(/solo lectura/i.test(errMsg(ex2)))RS.roErr=true;
         var q;for(q=RS.rcp.length-1;q>=0;q--)if(RS.rcp[q].nom===names[i].nom&&RS.rcp[q].dia===dia)RS.rcp.splice(q,1);
         RS.rcp.push({nom:names[i].nom,mesa:names[i].mesa,dia:dia});CFG.rcp=RS.rcp;cfgSave()}}
-  }catch(ex){err=ex.message}
+  }catch(ex){err=errMsg(ex)}
   finally{xlQuit(xl)}
   if(err&&wrote)err='REVISA EL INFORME: se hizo el cambio pero fallo despues ('+err+'). NO lo repitas sin revisar el Informe y el Rating Card.';
   if(err&&!wrote&&/solo lectura/i.test(err)&&!op.rty){op.rty=1;if(killOrphans()>0){jobHistOp(op,by,done);return}}
@@ -1576,7 +1581,7 @@ function jobCierre(cb,opt){
           if(!t)continue;
           if(esRojo(colorCelda(ws.Cells(i+1,4))))res.nov.push(t)}
         res.nvok=true}
-      catch(ex){res.warn.push('no pude leer las casillas rojas del Informe ('+ex.message+'): NO se abrira el parte informativo')}
+      catch(ex){res.warn.push('no pude leer las casillas rojas del Informe ('+errMsg(ex)+'): NO se abrira el parte informativo')}
       wrote=true;
       infPon(ws,r1,res.pro,hora);infPon(ws,r2,res.fic,hora);
       if(opt){
@@ -1587,7 +1592,7 @@ function jobCierre(cb,opt){
       ob.app.Calculate();wb.Save()
     }finally{closeBk(ob)}
     res.ok=true
-  }catch(ex){res.err=ex.message}
+  }catch(ex){res.err=errMsg(ex)}
   finally{xlQuit(xl)}
   if(res.err&&wrote)res.err='REVISA EL INFORME: se escribio parte de los comentarios y fallo despues ('+res.err+')';
   if(res.err&&!wrote&&/solo lectura/i.test(res.err)&&!jobCierre.rty){jobCierre.rty=1;if(killOrphans()>0){jobCierre(cb,opt);return}}
@@ -1760,7 +1765,7 @@ function jobInfTxt(kind,o,cb){
       ob.app.Calculate();wb.Save()
     }finally{closeBk(ob)}
     res.ok=true
-  }catch(ex){res.err=ex.message}
+  }catch(ex){res.err=errMsg(ex)}
   finally{xlQuit(xl)}
   if(res.err&&wrote)res.err='REVISA EL INFORME: puede haberse escrito parte del renglon y fallo despues ('+res.err+')';
   if(res.err&&!wrote&&/solo lectura/i.test(res.err)&&!jobInfTxt.rty){jobInfTxt.rty=1;if(killOrphans()>0){jobInfTxt(kind,o,cb);return}}
@@ -1820,7 +1825,7 @@ function jobInfRead(cb){
         if(!res.ct&&t.indexOf('DEALER PRESENTA')>=0&&t.indexOf('JUEGO DE DADOS')>=0){x=parseCartas(raw);if(x){res.ct=x;res.cr=i+1}}}
     }finally{closeBk(ob)}
     res.ok=true
-  }catch(ex){res.err=ex.message}
+  }catch(ex){res.err=errMsg(ex)}
   finally{xlQuit(xl)}
   cb(res)}
 function infLeerReq(cb){
@@ -1912,7 +1917,7 @@ function jobCajas(o,cb){
       ob.app.Calculate();wb.Save()
     }finally{closeBk(ob)}
     res.ok=true
-  }catch(ex){res.err=ex.message}
+  }catch(ex){res.err=errMsg(ex)}
   finally{xlQuit(xl)}
   if(res.err&&wrote)res.err='REVISA EL INFORME: puede haberse escrito parte del renglon y fallo despues ('+res.err+')';
   if(res.err&&!wrote&&/solo lectura/i.test(res.err)&&!jobCajas.rty){jobCajas.rty=1;if(killOrphans()>0){jobCajas(o,cb);return}}
@@ -2010,10 +2015,10 @@ function cierreGo(f,warn,oper,nov,nvok){
       cu=['Buen dia.','','Les hago env\u00edo de los datos de cierre correspondientes al dia operativo '+f+'.','','Banco de Fichas.','Depuraci\u00f3n de tarjetas.','Devoluciones.','Fill y Credit.','Jackpot.','Propinas J.V.','Rating Card.','','Saludos.'].join('\r\n'),
       url='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(CIERRE_TO.join(','))+'&su='+encodeURIComponent(asu)+'&body='+encodeURIComponent(cu);
   try{new ActiveXObject('WScript.Shell').Run(url)}
-  catch(ex){alert('No pude abrir el navegador: '+ex.message);return}
+  catch(ex){alert('No pude abrir el navegador: '+errMsg(ex));return}
   if(nvok){
     var url2='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(PARTE_TO.join(','))+'&su='+encodeURIComponent('PARTE INFORMATIVO '+f+' CASINO CAPRI, GUADALAJARA')+'&body='+encodeURIComponent(parteCuerpo(f,nov));
-    setTimeout(function(){try{new ActiveXObject('WScript.Shell').Run(url2)}catch(ex){alert('No pude abrir el correo del parte informativo: '+ex.message)}},1500)}
+    setTimeout(function(){try{new ActiveXObject('WScript.Shell').Run(url2)}catch(ex){alert('No pude abrir el correo del parte informativo: '+errMsg(ex))}},1500)}
   note('Cierre: comentarios escritos en el INFORME'+(oper?' ('+esc(oper)+')':'')+' y correo abierto en Gmail ('+esc(f)+')'+(nvok?' + parte informativo ('+nov.length+' novedad(es) en rojo)':'')+'.'+(warn?' <span class="dn">Aviso: '+esc(warn)+'</span>':''),warn?'dn':'up');
   if(warn)alert('Avisos del cierre:\n\n'+String(warn).replace(/ \| /g,'\n'))}
 function srvCierre(m){
@@ -2125,9 +2130,9 @@ function buildScore(mode,ti,tr,fichas,af,rows){
     return t.join('\n')}
   sc=ti-(tr+fichas);
   var jl=sumJL(rows),tc=topCliente(rows);
-  t.push('Score mesas Capri','','Mesas activas: '+af.mesas,'Clientes en sala: '+af.clientes,'Ingresos totales: '+m0(ti),'Retiros totales: '+m0(tr),'Fichas en circulaci\u00f3n: '+m0(fichas));
+  t.push('Score mesas Capri','','Hora: '+hhmm(),'','Mesas activas: '+af.mesas,'Clientes en sala: '+af.clientes,'Ingresos totales: '+m0(ti),'Retiros totales: '+m0(tr),'Fichas en circulaci\u00f3n: '+m0(fichas));
   if(jl>0)t.push('JL: '+m0(jl));
-  t.push('*Score:* '+mS(sc));
+  t.push('*SCORE:* '+(sc<0?'LOSS ':(sc>0?'WIN ':''))+mS(sc));
   if(sc<0){var gw=topGanadores(rows,3),gt=0,gi;
     if(gw.length){t.push('','Clientes que mas ganaron:');
       for(gi=0;gi<gw.length;gi++){gt+=gw[gi].net;t.push('\u2022 '+gw[gi].n+' gan\u00f3 '+m0(gw[gi].net)+' (ingres\u00f3 '+m0(gw[gi].ti)+', retir\u00f3 '+m0(gw[gi].tr)+')')}
@@ -2146,7 +2151,7 @@ function jobScore(mode,fichas,by,id){
       if(mode==='S')af=readAforo(ob.wb);
       txt=buildScore(mode,ti,tr,fichas,af,rows)
     }finally{closeBk(ob)}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   regRender();if(srv()&&!err)ntPub('st',{k:'v',ti:TOT.ti,tr:TOT.tr});
   if(by!==undefined){ntPub('st',{k:'x',id:id,ok:!err,txt:txt,msg:String(err||'').substring(0,200)});return}
@@ -2236,7 +2241,7 @@ function dvReadLibro(xl,res,order,need){
       for(r=0;r<v.length;r++)if(!isEmp(v[r][3])&&typeof v[r][2]==='number'&&sameName(String(v[r][3]),res.nom))
         out.push({fp:v[r][2],fe:(typeof v[r][0]==='number'?v[r][0]:0),monto:nm(v[r][6])})}
     res.libro=out
-  }catch(e){res.libroErr=e.message}
+  }catch(e){res.libroErr=errMsg(e)}
   finally{if(ob)closeBk(ob)}}
 function dvCollect(nom){
   var xl=null,res={nom:nom,cards:{},fe:ser(FE)},i,d,mk,need={},order=[],p,ob,n=DVC().days;
@@ -2249,10 +2254,10 @@ function dvCollect(nom){
         if(!p||!fso.FileExists(p))throw new Error('no encuentro el Rating Card de '+MES[d.getMonth()]+' ('+p+')');
         ob=openBook(xl,p,false);
         res.cards[mk]=dvReadCard(ob.wb,nom,d)
-      }catch(e){res.cards[mk]={err:e.message}}
+      }catch(e){res.cards[mk]={err:errMsg(e)}}
       finally{if(ob)closeBk(ob)}}
     dvReadLibro(xl,res,order,need);
-  }catch(e){res.err=e.message}
+  }catch(e){res.err=errMsg(e)}
   finally{xlQuit(xl)}
   return res}
 function dvJobLookup(nom,tk){
@@ -2393,7 +2398,7 @@ function dvJobSave(rec){
   var xl=null,out=[],fails=[],stp=[],lab=fmtF(rec.fp);
   function step(t,fn){
     try{var s=fn();if(rec.cancel)return;out.push('<span class="up">'+t+' OK'+(s?' ('+s+')':'')+'</span>');stp.push([t,1,String(s||'').substring(0,200)])}
-    catch(e){fails.push(t+': '+e.message);out.push('<span class="dn">'+t+': '+esc(e.message)+'</span>');stp.push([t,0,String(e.message).substring(0,200)])}}
+    catch(e){fails.push(t+': '+errMsg(e));out.push('<span class="dn">'+t+': '+esc(errMsg(e))+'</span>');stp.push([t,0,String(errMsg(e)).substring(0,200)])}}
   try{
     xl=xlStart();
     step('Libro de devoluciones',function(){
@@ -2442,7 +2447,7 @@ function dvJobSave(rec){
         if(Math.abs(nm(cell.Value2)-(cur+rec.monto))>0.001)throw new Error('no quedo escrito en la ficha');
         ob.app.Calculate();wb.Save();return 'dia de entrega '+rec.fe.getDate()+(cur>0?', sumado a '+m0(cur):'')
       }finally{closeBk(ob)}})
-  }catch(e){fails.push(e.message);out.push('<span class="dn">'+esc(e.message)+'</span>');stp.push(['',0,String(e.message).substring(0,200)])}
+  }catch(e){fails.push(errMsg(e));out.push('<span class="dn">'+esc(errMsg(e))+'</span>');stp.push(['',0,String(errMsg(e)).substring(0,200)])}
   finally{xlQuit(xl)}
   if(rec.remote){dvRemoteDone(rec,stp,fails);return}
   DV.busy=false;
@@ -2481,7 +2486,7 @@ function srvDvQ(m){
 function jobDvQ(id,nom){
   var res,js;
   try{res=dvCollect(nom);dvBuild(res);js=dvPack(res)}
-  catch(e){js=JSON.stringify({nom:nom,fe:ser(FE),err:String(e.message).substring(0,200),lb:'',r:[]})}
+  catch(e){js=JSON.stringify({nom:nom,fe:ser(FE),err:String(errMsg(e)).substring(0,200),lb:'',r:[]})}
   dvPubRes(id,js)}
 function dvCheck(x){
   var okTxt=function(v,mn,mx,re){return typeof v==='string'&&v.length>=mn&&v.length<=mx&&re.test(v)},
@@ -2681,7 +2686,7 @@ function jpJobSave(rec){
         try{readJp(wb)}catch(e2){}
         res='hoja '+ws.Name+', fila '+row+', columna '+cl}
     }finally{closeBk(ob)}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   if(rec.remote){jpRemoteDone(rec,res,err);return}
   JPF.busy=false;
@@ -2814,7 +2819,7 @@ function jpJobOp(op,cb){
       wb.Save();try{readJp(wb)}catch(e2){}
     }finally{closeBk(ob)}
     res.ok=true;res.msg=msg
-  }catch(ex){err=ex.message;res.err=err}
+  }catch(ex){err=errMsg(ex);res.err=err}
   finally{xlQuit(xl)}
   cb(res)}
 function jpCheckOp(m){
@@ -2873,12 +2878,21 @@ function fcShow(){
        '<div class="c"><small>DEVUELTO EN EL MES</small><b>'+m0(td)+'</b></div></div>';
     h+='<div style="margin:0.125rem 0 0.5rem;font-size:1rem">Ingreso '+m0(ti)+' &middot; retiro '+m0(tr)+' &rarr; <b class="'+(rs>0?'up':(rs<0?'dn':''))+'">'+(rs>0?'ganancia del cliente '+m0(rs):(rs<0?'perdida del cliente '+m0(-rs):'sin diferencia'))+'</b></div>';
     h+='<table class="t" style="width:100%"><tr><th>Dia</th><th>Ingreso</th><th>Retiro</th><th>Resultado</th><th>Devuelto (entrega)</th></tr>';
-    for(i=0;i<c.dm;i++){x=c.days[i];
+    for(i=0;i<c.dm;i++){x=c.days[i];var ck=x.res<0;
       hl=(c.month===FE.getMonth()&&x.d<=FE.getDate()&&(lo.getMonth()!==FE.getMonth()||x.d>=lo.getDate()));
-      h+='<tr'+(hl?' style="background:#1b4036"':'')+'><td>'+x.d+'</td><td class="n">'+m0(x.ing)+'</td><td class="n">'+m0(x.ret)+'</td><td class="n '+(x.res<0?'dn':(x.res>0?'up':''))+'">'+mS(x.res)+'</td><td class="n">'+(x.dev?m0(x.dev):'-')+'</td></tr>'}
+      h+='<tr'+(ck?' style="cursor:pointer" title="Clic para llenar la devolucion con este dia" onclick="fcPickDay('+i+')"':(hl?' style="background:#1b4036"':''))+'><td>'+x.d+'</td><td class="n">'+m0(x.ing)+'</td><td class="n">'+m0(x.ret)+'</td><td class="n '+(x.res<0?'dn':(x.res>0?'up':''))+'">'+mS(x.res)+'</td><td class="n">'+(x.dev?m0(x.dev):'-')+'</td></tr>'}
     h+='<tr style="font-weight:700"><td>Total</td><td class="n">'+m0(ti)+'</td><td class="n">'+m0(tr)+'</td><td class="n '+(rs<0?'dn':(rs>0?'up':''))+'">'+mS(rs)+'</td><td class="n">'+m0(td)+'</td></tr></table>';
-    h+='<div class="hint">Resultado = retiro - ingreso (positivo: gano el cliente; negativo: perdio). La devolucion se anota en el dia en que se entrega. Sombreados: los ultimos dias revisados. Datos leidos al elegir el nombre; usa Actualizar para volver a leer.</div>'}
+    h+='<div class="hint">Resultado = retiro - ingreso (positivo: gano el cliente; negativo: perdio). Clic en un dia con perdida (en rojo) para llenar la devolucion con ese dia, sin importar que tan viejo sea: la fecha de entrega sigue siendo hoy. Sombreados: los ultimos dias revisados. Datos leidos al elegir el nombre; usa Actualizar para volver a leer.</div>'}
   $('fcB').innerHTML=h;$('mFc').style.display='flex'}
+function fcPickDay(i){
+  var r=DV.res,c=r&&r.cur,x=c&&c.days&&c.days[i];
+  if(!x||!(x.res<0))return;
+  dvOpen();
+  $('dvF').value=pad(x.d)+'/'+pad(c.month+1)+'/'+c.year;
+  $('dvL').value=String(-x.res);DV.man=false;dvIn('L');
+  $('mFc').style.display='none';
+  try{$('dvP').focus();$('dvP').select()}catch(e){}
+}
 document.addEventListener('keydown',function(e){if(e.keyCode===27&&ovShown('mFc')){e.preventDefault();fcClose()}},false);
 
 /* =================== ENCABEZADOS =================== */
@@ -2946,7 +2960,7 @@ function jobHdScan(){
             a=colName(c+1)+(r+1);
             try{if(ws.Range(a).HasFormula===true){fm++;continue}}catch(e){}
             hits.push({f:fi,sh:String(ws.Name),a:a,o:s,n:k.n});f.n++;f.sh[ws.Name]=1}}
-      }catch(e){notes.push(esc(f.l)+': '+esc(e.message))}
+      }catch(e){notes.push(esc(f.l)+': '+esc(errMsg(e)))}
       finally{if(ob)closeBk(ob)}}
   }finally{xlQuit(xl)}
   HD.hits=hits;
@@ -2976,7 +2990,7 @@ function jobHdApply(sel){
         for(j=0;j<HD.hits.length;j++){h=HD.hits[j];if(h.f!==fi)continue;
           try{ws=ob.wb.Worksheets.Item(h.sh);ws.Range(h.a).Value=h.n;ok++}catch(e){bad++}}
         ob.wb.Save();rep.push(esc(f.l)+': '+ok+' celdas cambiadas'+(bad?', '+bad+' fallaron (hoja protegida?)':''))}
-      catch(e){rep.push('<span class="dn">'+esc(f.l)+': '+esc(e.message)+'</span>')}
+      catch(e){rep.push('<span class="dn">'+esc(f.l)+': '+esc(errMsg(e))+'</span>')}
       finally{if(ob)closeBk(ob)}}
   }finally{xlQuit(xl)}
   hdSaveNames($('hdM').checked,true);
@@ -2985,7 +2999,7 @@ function abrirArchivo(k){
   var p=rp(k);
   if(!p){alert('Primero elige o escribe la ruta de este archivo.');return}
   if(!fso.FileExists(p)){alert('No encuentro el archivo:\n'+p);return}
-  try{var sh=new ActiveXObject('WScript.Shell');sh.Run('"'+p+'"',1,false)}catch(e){alert('No pude abrirlo: '+e.message)}}
+  try{var sh=new ActiveXObject('WScript.Shell');sh.Run('"'+p+'"',1,false)}catch(e){alert('No pude abrirlo: '+errMsg(e))}}
 
 /* ---- teclado y entradas ---- */
 function regBind(){
@@ -3093,7 +3107,7 @@ function jobApRead(cb){
     if(!p)throw new Error('falta la ruta del Informe');if(!fso.FileExists(p))throw new Error('no encuentro '+p);
     xl=xlStart();ob=openBook(xl,p,false);
     rows=apFind(findSheet(ob.wb,null,['JEFATURA']))
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{if(ob)closeBk(ob);xlQuit(xl)}
   cb(rows,err)}
 function jobApSave(kind,row,nom,hh,mm,ow,cb,rty){
@@ -3114,7 +3128,7 @@ function jobApSave(kind,row,nom,hh,mm,ow,cb,rty){
       if(Math.abs(nm(c.Value2)-v)>0.000001)throw new Error('no quedo escrito en '+ad+' (hoja protegida?)');
       ob.app.Calculate();ob.wb.Save();
       res={t:apTimeTxt(c.Value2),ad:ad}}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{if(ob)closeBk(ob);xlQuit(xl)}
   if(err&&!wrote&&/solo lectura/i.test(err)&&!rty){if(killOrphans()>0){jobApSave(kind,row,nom,hh,mm,ow,cb,1);return}}
   if(err&&wrote)err='REVISA la hoja HORARIO DE JEFATURAS: se escribio la hora pero fallo despues ('+err+')';
@@ -3192,7 +3206,7 @@ function jobPrRead(cb){
     if(!p)throw new Error('falta la ruta del archivo de Premios');if(!fso.FileExists(p))throw new Error('no encuentro '+p);
     xl=xlStart();ob=openBook(xl,p,false);
     rows=prRead(prSheet(ob.wb))
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{if(ob)closeBk(ob);xlQuit(xl)}
   cb(rows,err)}
 function jobPrSave(row,dd,hr,fol,nom,pit,hh,mm,ow,cb,rty){
@@ -3216,7 +3230,7 @@ function jobPrSave(row,dd,hr,fol,nom,pit,hh,mm,ow,cb,rty){
         throw new Error('no quedo escrito en la fila '+row+' (hoja protegida?)');
       ob.app.Calculate();ob.wb.Save();
       res={t:tm12(v)}}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{if(ob)closeBk(ob);xlQuit(xl)}
   if(err&&!wrote&&/solo lectura/i.test(err)&&!rty){if(killOrphans()>0){jobPrSave(row,dd,hr,fol,nom,pit,hh,mm,ow,cb,1);return}}
   if(err&&wrote)err='REVISA el archivo de Premios (fila '+row+'): se escribio algo pero fallo despues ('+err+'). No lo repitas sin revisar.';
@@ -3349,7 +3363,7 @@ function jobAfRead(cb){
       for(i=last+1;i<=cur;i++)pend.push(AFH[i]);
       st={pend:pend,last:last>=0?AFH[last]:-1}
     }finally{closeBk(ob)}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   cb(st,err)}
 
@@ -3369,7 +3383,7 @@ function jobAfSave(h,mes,vals,cb,rty){
       if(bad2.length)throw new Error('no quedo escrito en '+bad2.join(', ')+' (hoja protegida?)');
       ob.app.Calculate();wb.Save();
     }finally{closeBk(ob)}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   if(err&&/solo lectura/i.test(err)&&!rty){if(killOrphans()>0){jobAfSave(h,mes,vals,cb,1);return}}
   cb(err)}
@@ -3636,8 +3650,8 @@ function jobHsRead(cb){
     if(!pp)res.warn='Falta la ruta del archivo de Propinas (Conexion y archivos): por ahora solo se guarda en el Informe.';
     else if(!fso.FileExists(pp))res.warn='No encuentro el archivo de Propinas: '+esc(pp)+'. No se podra guardar hasta corregirlo.';
     else{try{ob2=openBook(xl,pp,false);try{c=hsFindPro(ob2.wb,FE);res.pro={vals:hsVals(c.ws,c.row,c.cols,n),sheet:String(c.ws.Name)}}finally{closeBk(ob2)}}
-      catch(e2){res.warn='Archivo de Propinas: '+esc(e2.message)+'. No se podra guardar hasta corregirlo.'}}
-  }catch(e){err=e.message}
+      catch(e2){res.warn='Archivo de Propinas: '+esc(errMsg(e2))+'. No se podra guardar hasta corregirlo.'}}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   cb(res,err)}
 
@@ -3664,7 +3678,7 @@ function jobHsSave(adds,cb,rty){
       if(Math.abs(nm(c.Value2)-ex)>0.001)throw new Error('no quedo escrito en '+String(c.Address(false,false))+' de '+tg[t].l+' (hoja protegida?)');
       if(t===0)res.push({i:i,add:adds[i],nw:ex})}
     for(t=0;t<tg.length;t++){tg[t].ob.app.Calculate();tg[t].ob.wb.Save()}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{for(i=0;i<obs.length;i++)closeBk(obs[i]);xlQuit(xl)}
   if(err&&!wrote&&/solo lectura/i.test(err)&&!rty){if(killOrphans()>0){jobHsSave(adds,cb,1);return}}
   if(err&&wrote)err='REVISA el Informe y el archivo de Propinas: se escribio algo pero fallo despues ('+err+'). NO lo repitas sin revisar.';
@@ -3769,7 +3783,7 @@ function jobHsHeads(nn,cb){
             if(bl&&bl.cols.length){for(i=0;i<nn.length&&i<bl.cols.length;i++)w.Cells(bl.nr,bl.cols[i]).Value=nn[i];k++}}
           o2.wb.Save();out.push('Propinas ('+k+' hoja(s))')}}
       finally{closeBk(o2)}}
-  }catch(e){err=e.message}
+  }catch(e){err=errMsg(e)}
   finally{xlQuit(xl)}
   cb('Nombres actualizados en: '+(out.length?out.join(', '):'ningun archivo (revisa las rutas)')+'.',err)}
 
@@ -3811,7 +3825,7 @@ function cuReadInf(xl,pl){
       if(bc<1)bc=2;
       v=rr(ws,colName(bc)+(hr+1)+':'+colName(bc+10)+(hr+600));
       pl.dvInf={hr:hr,bc:bc,rows:v}
-    }catch(e2){pl.warn.push('Informe, hoja DEVOLUCIONES: '+e2.message)}
+    }catch(e2){pl.warn.push('Informe, hoja DEVOLUCIONES: '+errMsg(e2))}
   }finally{closeBk(ob)}}
 function cuReadRc(xl,pl){
   var pr=rp('rc'),ob,wsD,wsL,cols=[2,10,18],blk=[],b,k,ix,t,row,d,lv,i,cards=[],free=[],last=-1,names=[];
@@ -3895,7 +3909,7 @@ function cuJobAnalyze(){
   try{
     xl=xlStart();
     cuReadInf(xl,pl);cuReadRc(xl,pl);cuReadLibro(xl,pl);cuBuild(pl)
-  }catch(e){pl.err=e.message}
+  }catch(e){pl.err=errMsg(e)}
   finally{xlQuit(xl)}
   CU.plan=pl}
 
@@ -4013,7 +4027,7 @@ function cuJobApply(pl,R){
         for(i=0;i<pl.dvMiss.length;i++){R.wrote=true;cuPutDev(ws,free[i],bc,pl.dvMiss[i]);R.nDev++}
         ob.app.Calculate();wb.Save();
       }finally{closeBk(ob)}}
-  }catch(e){R.err=e.message}
+  }catch(e){R.err=errMsg(e)}
   finally{xlQuit(xl)}}
 function cuApply(){
   var pl=CU.plan;
@@ -4046,6 +4060,7 @@ window.onload=function(){
     try{var aw=screen.availWidth,ah=screen.availHeight,ww=Math.min(aw,Math.max(Math.min(900,aw),Math.round(aw*.85))),wh=Math.min(ah,Math.max(Math.min(600,ah),Math.round(ah*.9)));window.resizeTo(ww,wh);window.moveTo(Math.round((aw-ww)/2),Math.round((ah-wh)/2))}catch(e){}
     fit();
     FE=fechaOp();initState();cfgLoad();selBar();regBind();render();showView('reg');
+    if(window.DEBUG_DIAG)console.log('[FASE-B-DIAG] PLATFORM.ready:', (window.PLATFORM && window.PLATFORM.ready), '| devId():', devId(), '| CFG.dsalt:', CFG.dsalt, '| CFG.dev.length:', (CFG.dev ? CFG.dev.length : 0));
     if(!CFG.nt.mode)CFG.nt.mode='cli'; // Forzar rol cliente si está vacío
     tfaGate(function(){lockShow(CFG.pw&&CFG.pw.h?'ask':'set',arranque)});
   }

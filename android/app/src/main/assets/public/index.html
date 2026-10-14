@@ -14,7 +14,7 @@
 <div id="vReg" class="view" style="display:flex">
   <div class="vtop">
     <div class="bar">
-      <h1>Registro &middot; Capri GDL</h1><span class="hint" style="margin-top:0">Dia de operacion: <b id="rgF"></b></span>
+      <h1 id="rgH1" contenteditable="true" spellcheck="false" title="Clic para editar este titulo" onblur="rgTitleSave()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></h1><span class="hint" style="margin-top:0">Dia de operacion: <span class="b" onclick="moveDay(-1)" title="Dia anterior">&larr;</span> <b id="rgF"></b> <span class="b" onclick="moveDay(1)" title="Dia siguiente">&rarr;</span></span>
       <span class="sp"></span>
       <span class="opc" onclick="monOpen(false)" title="Cambiar operador"><span class="hint">Operador</span><b id="rgM"></b> &#9662;</span>
       <span class="b" onclick="regCfgOpen()">Configuracion</span>
@@ -333,9 +333,43 @@
   <div id="alCf"></div>
 </div></div>
 
-<!-- Scripts: Capa de plataforma antes de app.js y mobile.js después -->
+<!-- Scripts: platform.js se carga primero; app.js y mobile.js se cargan dinámicamente tras PLATFORM.readyPromise -->
 <script src="platform.js"></script>
-<script src="app.js"></script>
-<script src="mobile.js"></script>
+<script>
+  (function() {
+    function loadScript(src) {
+      return new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = function() { reject(new Error('No se pudo cargar ' + src)); };
+        document.body.appendChild(s);
+      });
+    }
+
+    var readyTimeout = new Promise(function(resolve) {
+      setTimeout(function() {
+        console.warn('[INIT] Timeout de 3s en PLATFORM.readyPromise. Cargando scripts con respaldo...');
+        resolve();
+      }, 3000);
+    });
+
+    var readyGate = (window.PLATFORM && window.PLATFORM.readyPromise)
+      ? Promise.race([window.PLATFORM.readyPromise, readyTimeout])
+      : readyTimeout;
+
+    readyGate.then(function() {
+      return loadScript('app.js');
+    }).then(function() {
+      return loadScript('mobile.js');
+    }).then(function() {
+      if (typeof window.onload === 'function') {
+        window.onload();
+      }
+    }).catch(function(err) {
+      console.error('[INIT] Error fatal inicializando la aplicación:', err);
+    });
+  })();
+</script>
 </body>
 </html>
